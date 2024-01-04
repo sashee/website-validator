@@ -1,11 +1,18 @@
 {
   "compilerOptions": {
     "noEmitOnError": true,
+
 		"strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+
     "sourceMap": true,
     "target": "es6",
-		"module": "nodenext",
-    "moduleResolution": "nodenext",
+		"module": "node16",
+    "moduleResolution": "node16",
 		"declaration": true,
     "outDir": "dist"
   },
