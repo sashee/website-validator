@@ -3,7 +3,7 @@ import path from "node:path";
 import url from "url";
 import { strict as assert } from "node:assert";
 import {validate} from "../../index.js";
-import {getElementLocation, withTempDir} from "../../utils.js";
+import {withTempDir} from "../../utils.js";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 
@@ -34,7 +34,7 @@ const initFailIds = () => {
 
 describe("links", () => {
 		const {nextFailId, getFailIds} = initFailIds();
-	it("inside html", async () => {
+	it.only("inside html", async () => {
 		const errors = await setupTestFiles([{
 			filename: "index.html",
 			contents: `
@@ -196,7 +196,7 @@ it.skip("html error", async () => {
 		{url: "/promos.json", role: {type: "json", extractConfigs: [{jmespath: "promos[*].url", asserts: [], role: {type: "document"}}, {jmespath: "promos[*].image", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}]}},
 		{url: "/flashback.json", role: {type: "json", extractConfigs: [{jmespath: "[*].[image, \"small-image\"][]", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}, {jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
 	]);
-	console.log(res);
+	console.log(JSON.stringify(res, undefined, 4));
  }catch(e) {
 	 console.error(e);
 	 throw e;
