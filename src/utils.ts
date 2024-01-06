@@ -6,6 +6,7 @@ import Rx from "rxjs";
 import RxJsOperators from "rxjs/operators";
 import postcss from "postcss";
 import os from "node:os";
+import { strict as assert } from "node:assert";
 
 export const withTempDir = async <T> (fn: (dir: string) => T) => {
 	const dir = await fs.mkdtemp(await fs.realpath(os.tmpdir()) + path.sep);
@@ -137,7 +138,9 @@ export const extractAllUrlsFromCss = async (css: string) => {
 								)
 							)
 						)
-						result.push({url: url.match(/^url\("(?<data>.*)"\)$/)!.groups!["data"]!, parent, prop: decl.prop, position});
+						const matchedUrl = url.match(/^url\("?(?<data>.*)"?\)$/);
+						assert(matchedUrl, `could not parse css url: ${url} , decl.value: ${decl.value}`);
+						result.push({url: matchedUrl.groups!["data"]!, parent, prop: decl.prop, position});
 					});
 				}
 			}

@@ -1,6 +1,6 @@
 import {describe, it} from "node:test";
 import path from "node:path";
-import url from "url";
+import url from "node:url";
 import { strict as assert } from "node:assert";
 import {validate} from "../../index.js";
 import {withTempDir} from "../../utils.js";
