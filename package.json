@@ -1,6 +1,6 @@
 {
   "name": "website-validator",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "Comprehensive website validation",
   "main": "dist/index.js",
   "type": "module",
