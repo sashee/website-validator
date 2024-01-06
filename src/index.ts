@@ -230,8 +230,7 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 			const getContentType = (res: FileFetchResult) => res.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
 			const contentType = getContentType(res);
 			const dom = await (async () => {
-				if (links.some(({url}) => new URL(url, baseUrl).hash !== "")) {
-					assert(res.data, "res.data must not be null if there are fragment links");
+				if (res.data && links.some(({url}) => new URL(url, baseUrl).hash !== "")) {
 					const contents = await fs.readFile(res.data);
 					return new JSDOM(contents.toString("utf8"), {url: baseUrl});
 				}else {
@@ -239,11 +238,11 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 				}
 			})();
 			return links.flatMap((link): {type: ErrorTypes, link: typeof link}[] => {
-				if (link.role.type === "document" || contentType === "text/html") {
-					if (isInternalLink(baseUrl)(link.url)) {
-						if (res.data === null) {
-							return [{type: "TARGET_NOT_FOUND", link}];
-						}else {
+				if (isInternalLink(baseUrl)(link.url)) {
+					if (res.data === null) {
+						return [{type: "TARGET_NOT_FOUND", link}];
+					}else {
+						if (link.role.type === "document" || contentType === "text/html") {
 							const hash = new URL(link.url, baseUrl).hash;
 							if (hash !== "") {
 								// validate hash
@@ -257,16 +256,16 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 							}else {
 								return [];
 							}
+						}else {
+							if (new URL(link.url, baseUrl).hash !== "") {
+								return [{type: "HASH_POINTS_TO_NON_DOCUMENT", link}];
+							}else {
+								return [];
+							}
 						}
-					}else {
-						return [];
 					}
 				}else {
-					if (new URL(link.url, baseUrl).hash !== "") {
-						return [{type: "HASH_POINTS_TO_NON_DOCUMENT", link}];
-					}else {
-						return [];
-					}
+					return [];
 				}
 			})
 		}

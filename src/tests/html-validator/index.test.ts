@@ -20,6 +20,7 @@ const setupTestFiles = (files: {filename: string, contents: string}[]) => async 
 		return fn(dir);
 	});
 }
+
 const initFailIds = () => {
 	const ids = [] as string[];
 	return {
@@ -33,8 +34,8 @@ const initFailIds = () => {
 };
 
 describe("links", () => {
+	it("inside html", async () => {
 		const {nextFailId, getFailIds} = initFailIds();
-	it.only("inside html", async () => {
 		const errors = await setupTestFiles([{
 			filename: "index.html",
 			contents: `
@@ -180,6 +181,29 @@ describe("links", () => {
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
 			assert(errors.some((error) => error.type === "HASH_TARGET_NOT_FOUND" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+		});
+	});
+
+	it("missing target", async () => {
+		const {nextFailId, getFailIds} = initFailIds();
+		const errors = await setupTestFiles([{
+			filename: "index.html",
+			contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		<a href="https://example.com/abc.html">${nextFailId()}</a>
+	</body>
+</html>
+			`
+		}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}]));
+		const failIds = getFailIds();
+		assert.equal(errors.length, failIds.length);
+		failIds.forEach((failId, index) => {
+			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 		});
 	});
 });

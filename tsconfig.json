@@ -10,9 +10,9 @@
     "noPropertyAccessFromIndexSignature": true,
 
     "sourceMap": true,
-    "target": "es6",
-		"module": "node16",
-    "moduleResolution": "node16",
+    "target": "es2022",
+		"module": "es2022",
+    "moduleResolution": "bundler",
 		"declaration": true,
     "outDir": "dist"
   },
@@ -20,6 +20,7 @@
     "src/**/*.*"
   ],
 	"exclude": [
-		"**/*.test.ts"
+		"**/*.test.ts",
+		"node_modules/fast-equals/dist/**/*.d.ts"
 	]
 }

@@ -12,7 +12,7 @@ export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url:
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	if (role.type === "robotstxt") {
 		const contents = await fs.readFile(res.data);
-		const robots = (robotsParser as any as typeof robotsParser.default)(url, contents.toString("utf8"));
+		const robots = (robotsParser)(url, contents.toString("utf8"));
 		const sitemaps = robots.getSitemaps();
 		return sitemaps.map((url, index) => ({url, role: {type: "sitemap"}, asserts: [], location: {type: "robotssitemap", index}}));
 	}else if (role.type === "sitemap") {
