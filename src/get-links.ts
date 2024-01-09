@@ -8,6 +8,28 @@ import path from "node:path";
 import {JSDOM} from "jsdom";
 import {extractAllUrlsFromCss, getElementLocation} from "./utils.js";
 
+export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") => {
+	switch(type) {
+		case "xml": {
+			const parsed = await xml2js.parseStringPromise(contents);
+			return (parsed.urlset.url as {loc: string[]}[]).flatMap(({loc}, urlsetIndex) => loc.map((l) => ({loc: l, urlsetIndex}))).map(({loc, urlsetIndex}, urlIndex) => ({
+				url: loc,
+				role: {type: "document"},
+				asserts: [{type: "permanent"}],
+				location: {type: "sitemapxml", urlsetIndex, urlIndex},
+			} as const));
+		}
+		case "txt": {
+			return contents.split("\n").map((line, index) => [index, line.trim()] as const).filter(([, line]) => line !== "").map(([index, url]) => ({
+				url,
+				role: {type: "document"},
+				asserts: [{type: "permanent"}],
+				location: {type: "sitemaptxt", index},
+			} as const));
+		}
+	}
+}
+
 export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url: string, role: UrlRole, res: FoundPageFetchResult}): Promise<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	if (role.type === "robotstxt") {
@@ -18,25 +40,18 @@ export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url:
 	}else if (role.type === "sitemap") {
 		const contents = await fs.readFile(res.data);
 		const extension = path.extname(new URL(url).pathname);
-		if (extension === ".txt") {
-			// txt sitemap
-			return contents.toString("utf8").split("\n").map((line, index) => [index, line.trim()] as const).filter(([, line]) => line !== "").map(([index, url]) => ({
-				url,
-				role: {type: "document"},
-				asserts: [{type: "permanent"}],
-				location: {type: "sitemaptxt", index},
-			} as const));
-		}else {
-			// xml sitemap
-			const contents = await fs.readFile(res.data);
-			const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-			return (parsed.urlset.url as {loc: string[]}[]).flatMap(({loc}, urlsetIndex) => loc.map((l) => ({loc: l, urlsetIndex}))).map(({loc, urlsetIndex}, urlIndex) => ({
-				url: loc,
-				role: {type: "document"},
-				asserts: [{type: "permanent"}],
-				location: {type: "sitemapxml", urlsetIndex, urlIndex},
-			} as const));
-		}
+
+		return (await getUrlsFromSitemap(contents.toString("utf8"), extension === ".txt" ? "txt" : "xml")).map(({location, ...rest}) => {
+			return {
+				...rest,
+				location: {
+					...location,
+					sitemaplocation: {
+						url,
+					},
+				}
+			}
+		});
 	}else if (role.type === "rss") {
 		const contents = await fs.readFile(res.data);
 		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));

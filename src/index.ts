@@ -11,7 +11,7 @@ import mime from "mime";
 import { strict as assert } from "node:assert";
 import Piscina from "piscina";
 import url from "url";
-import {getLinks} from "./get-links.js";
+import {getLinks, getUrlsFromSitemap} from "./get-links.js";
 import os from "node:os";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
@@ -90,9 +90,19 @@ export type LinkLocation = {
 	index: number,
 } | {
 	type: "sitemaptxt",
+	sitemaplocation: {
+		url: string,
+	} | {
+		extrasitemapIndex: number
+	},
 	index: number,
 } | {
 	type: "sitemapxml",
+	sitemaplocation: {
+		url: string,
+	} | {
+		extrasitemapIndex: number
+	},
 	urlsetIndex: number,
 	urlIndex: number,
 } | {
@@ -110,8 +120,10 @@ export type LinkLocation = {
 } | {
 	type: "css",
 	position: string,
+} | {
+	type: "extraurl",
+	index: number,
 }
-
 
 type ErrorTypes =
 	// internal link points to a target that is not found
@@ -119,9 +131,12 @@ type ErrorTypes =
 	// hash part of a link points to a place that is not a document
 	| "HASH_POINTS_TO_NON_DOCUMENT"
 	// hash does not exist on the target page
-	| "HASH_TARGET_NOT_FOUND";
+	| "HASH_TARGET_NOT_FOUND"
+	// link points to a place that is not a document
+	| "LINK_POINTS_TO_NON_DOCUMENT";
 
-export const validate = (dir: string, baseUrl: string, indexName: string = "index.html") => async (fetchBases: {url: string, role: UrlRole}[]) => {
+export const validate = (dir: string, baseUrl: string, indexName: string = "index.html") => async (fetchBases: {url: string, role: UrlRole}[], {extraTxtSitemaps, extraXmlSitemaps, extraUrls}: {extraTxtSitemaps?: string[], extraXmlSitemaps?: string[], extraUrls?: string[]}) => {
+	assert((extraUrls ?? []).every((url) => isInternalLink(baseUrl)(url)), "extraUrls must be internal links");
 	const port = await getPort();
 	const app = await startStaticFileServer(dir, port, indexName);
 	try {
@@ -191,16 +206,49 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 						RxJsOperators.scan((num) => num + 1, 0),
 					),
 				),
-				RxJsOperators.tap(([started, finished]) => console.log(`${finished} / ${started}`)),
+				//RxJsOperators.tap(([started, finished]) => console.log(`${finished} / ${started}`)),
 				RxJsOperators.filter(([startedNum, finishedNum]) => startedNum === finishedNum),
 			).subscribe(() => urlSubject.complete());
 			startUrls.forEach(({url, role}) => urlSubject.next({url: toCanonical(baseUrl, indexName)(url), role}));
 			return await Rx.lastValueFrom(results.pipe(RxJsOperators.toArray()));
 		}
-		const files = await fetchFiles(fetchBases);
-		const allLinks = files
-			.flatMap(({links}) => links ?? [])
-			.map(({url, role, asserts}) => ({url, role, asserts}));
+		const files = await fetchFiles([
+			...fetchBases,
+			...(await Promise.all((extraXmlSitemaps ?? []).map(async (xmlSitemap) => getUrlsFromSitemap(xmlSitemap, "xml")))).flat(),
+			...(await Promise.all((extraTxtSitemaps ?? []).map(async (txtSitemap) => getUrlsFromSitemap(txtSitemap, "txt")))).flat(),
+			...(extraUrls ?? []).map((url) => ({url, role: {type: "asset"}} as const)),
+		]);
+			const extraLinks = [
+				...(await Promise.all((extraXmlSitemaps ?? []).map(async (xmlSitemap, sitemapIndex) => (await getUrlsFromSitemap(xmlSitemap, "xml")).map(({location, ...rest}) => {
+				return {
+					...rest,
+					location: {
+						...location,
+						sitemaplocation: {
+							extrasitemapIndex: sitemapIndex,
+						},
+					},
+				} as const;
+			})))).flat(),
+				...(await Promise.all((extraTxtSitemaps ?? []).map(async (txtSitemap, sitemapIndex) => (await getUrlsFromSitemap(txtSitemap, "txt")).map(({location, ...rest}) => {
+					return {
+						...rest,
+						location: {
+							...location,
+							sitemaplocation: {
+								extrasitemapIndex: sitemapIndex,
+							},
+						},
+					} as const;
+				})))).flat(),
+				...(extraUrls ?? []).map((url, index) => ({url, role: {type: "asset"}, asserts: [], location: {type: "extraurl", index}} as const)),
+			];
+			const allLinks: {url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[] = [
+				...files
+					.flatMap(({links}) => links ?? [])
+					.map(({url, role, asserts, location}) => ({url, role, asserts, location})),
+				...extraLinks,
+			];
 
 		const linksPointingToPages = allLinks.reduce((memo, link) => {
 			const canonical = toCanonical(baseUrl, indexName)(link.url);
@@ -287,19 +335,29 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 			}
 		}, {} as {[url: string]: {res: typeof files[0]["res"], roles: UrlRole[], links: typeof files[0]["links"]}});
 
-		const allPageErrors = (await Promise.all(Object.entries(urlsWithGroups).filter(([, {res}]) => res.data !== null).map(async ([url, {res, roles, links}]) => {
+		const extraLinksErrors = extraLinks.flatMap((link) => {
+			const page = urlsWithGroups[toCanonical(baseUrl, indexName)(link.url)];
+			if (page.res.data === null) {
+				return [{type: "TARGET_NOT_FOUND", location: {url: link.url, location: link.location}}];
+			}else {
+				const contentType = page.res.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+				if (link.role.type === "document" && contentType !== "text/html") {
+					return [{type: "LINK_POINTS_TO_NON_DOCUMENT", location: {url: link.url, location: link.location}}];
+				}else {
+					return [];
+				}
+				// TODO: check asserts
+			}
+		});
+		const allPageErrors = (await Promise.all(Object.entries(urlsWithGroups).map(async ([url, {res, roles, links}]) => {
 			const allLinksErrors = await Promise.all(
 				(links ?? [])
 					.filter((e, i, l) => l.findIndex((e2) => {
-						if (e.location.type === "html" && e2.location.type === "html") {
-							return e.location.element.selector === e2.location.element.selector;
-						}else {
-							return deepEqual(e, e2);
-						}
+						return deepEqual(e, e2);
 					}) === i)
 					.map(async (link): Promise<{type: ErrorTypes, location: {url: string, location: LinkLocation}}[]> => {
 						const foundErrors = allLinksWithErrors[toCanonical(baseUrl, indexName)(link.url)]?.filter(({link: linkWithError}) => {
-							return deepEqual(linkWithError, {url: link.url, role: link.role, asserts: link.asserts} as typeof linkWithError)
+							return deepEqual(linkWithError, link)
 						});
 						assert(foundErrors);
 						return foundErrors.map(({type}) => {
@@ -314,7 +372,7 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 				}));
 			return allLinksErrors;
 		}))).flat(2);
-		return allPageErrors;
+		return [...allPageErrors, ...extraLinksErrors];
 	}finally {
 		await new Promise((res) => app.close(res));
 	}
