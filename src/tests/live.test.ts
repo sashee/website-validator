@@ -7,10 +7,7 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 it.skip("html error", async () => {
  try{
-	 /*
-	const res = await validate(path.join(__dirname, "static"), "https://example.com")([{url: "/", role: {type: "document"}}]);
-	*/
-	const res = await validate(path.join(__dirname, "..", "..", "..", "..", "awm", "blog", "_site"), "https://advancedweb.hu")([
+	const res = await validate(path.join(__dirname, "..", "..", "..", "awm", "blog", "_site"), "https://advancedweb.hu")([
 		{url: "/", role: {type: "document"}},
 		{url: "/robots.txt", role: {type: "robotstxt"}},
 		{url: "/rss-sashee.xml", role: {type: "rss"}},
