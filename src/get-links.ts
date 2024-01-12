@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {JSDOM} from "jsdom";
 import {extractAllUrlsFromCss, getElementLocation} from "./utils.js";
+import {DeepReadonly} from "ts-essentials";
 
 export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") => {
 	switch(type) {
@@ -30,7 +31,7 @@ export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") 
 	}
 }
 
-export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url: string, role: UrlRole, res: FoundPageFetchResult}): Promise<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]> => {
+export const getLinks = async ({baseUrl, url, role, res}: DeepReadonly<{baseUrl: string, url: string, role: UrlRole, res: FoundPageFetchResult}>): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	if (role.type === "robotstxt") {
 		const contents = await fs.readFile(res.data);
@@ -55,12 +56,12 @@ export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url:
 	}else if (role.type === "rss") {
 		const contents = await fs.readFile(res.data);
 		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-		return (parsed.rss.channel as {item: {link: string}[]}[]).flatMap((channel, channelIndex) => (channel.item.map((c) => ({link: c.link, channelIndex}))).flatMap(({link, channelIndex}, linkIndex) => ({url: link, linkIndex, channelIndex}))).map(({url, channelIndex, linkIndex}) => ({
-			url,
+		return (parsed.rss.channel as {item: {link: string[]}[]}[]).flatMap((channel, channelIndex) => (channel.item.map((c) => ({link: c.link, channelIndex}))).flatMap(({link, channelIndex}, linkIndex) => ({link, linkIndex, channelIndex}))).flatMap(({link, channelIndex, linkIndex}) => link.map((l) => ({
+			url: l,
 			role: {type: "document"},
 			asserts: [{type: "permanent"}],
-			location: {type: "rss", channelIndex, linkIndex},
-		} as const));
+			location: {type: "rss", rssurl: url, channelIndex, linkIndex},
+		} as const)));
 	}else if (role.type === "atom") {
 		const contents = await fs.readFile(res.data);
 		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
@@ -68,16 +69,16 @@ export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url:
 			url: href,
 			role: {type: "document"},
 			asserts: [{type: "permanent"}],
-			location: {type: "atom", entryIndex, linkIndex},
+			location: {type: "atom", atomurl: url, entryIndex, linkIndex},
 		} as const));
 	}else if (role.type === "json") {
 		const contents = await fs.readFile(res.data);
 		const asJson = JSON.parse(contents.toString("utf8"));
-		return role.extractConfigs.flatMap((extractConfig) => (jmespath.search(asJson, extractConfig.jmespath) as string[]).map((url, index) => ({
-			url,
+		return role.extractConfigs.flatMap((extractConfig) => ((jmespath.search(asJson, extractConfig.jmespath) ?? []) as string[]).map((link, index) => ({
+			url: link,
 			role: extractConfig.role,
 			asserts: extractConfig.asserts,
-			location: {type: "json", jmespath: extractConfig.jmespath, index},
+			location: {type: "json", jsonurl: url, jmespath: extractConfig.jmespath, index},
 		})));
 	}else if (role.type === "document" || contentType === "text/html") {
 		const contents = await fs.readFile(res.data);
@@ -119,7 +120,7 @@ export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url:
 			return {url: script.src, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: getElementLocation(script)}}} as const;
 		});
 		const ogImages = [...dom.window.document.querySelectorAll("meta[property='og:image']") as NodeListOf<HTMLMetaElement>].map((ogImage) => {
-			return {url: ogImage.content, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: ogImage.outerHTML, selector: getElementLocation(ogImage)}}} as const;
+			return {url: ogImage.content, role: {type: "asset"}, asserts: [{type: "image"}, {type: "permanent"}], location: {type: "html", element: {outerHTML: ogImage.outerHTML, selector: getElementLocation(ogImage)}}} as const;
 		});
 		const imgSrcAssets = [...dom.window.document.querySelectorAll("img[src]") as NodeListOf<HTMLImageElement>].map((img) => {
 			return {url: img.src, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: getElementLocation(img)}}} as const;
