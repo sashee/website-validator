@@ -31,7 +31,7 @@ export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") 
 	}
 }
 
-export const getLinks = async ({baseUrl, url, role, res}: DeepReadonly<{baseUrl: string, url: string, role: UrlRole, res: FoundPageFetchResult}>): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
+export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	if (role.type === "robotstxt") {
 		const contents = await fs.readFile(res.data);

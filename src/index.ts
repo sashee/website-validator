@@ -8,10 +8,12 @@ import fs from "node:fs/promises";
 import mime from "mime";
 import { strict as assert } from "node:assert";
 import url from "url";
-import {getUrlsFromSitemap, getLinks} from "./get-links.js";
+import {getUrlsFromSitemap} from "./get-links.js";
 import {recursiveFetchFiles} from "./fetch-files.js";
 import util from "node:util";
-import {DeepReadonly, DeepWritable} from "ts-essentials";
+import {DeepReadonly} from "ts-essentials";
+import {pool} from "./worker-runner.js";
+import {validateFile, getLinks} from "./worker.js";
 
 export type FileFetchResult = {
 	headers: [string, string][],
@@ -128,7 +130,9 @@ type ErrorTypes =
 	// hash does not exist on the target page
 	| "HASH_TARGET_NOT_FOUND"
 	// link points to a place that is not a document
-	| "LINK_POINTS_TO_NON_DOCUMENT";
+	| "LINK_POINTS_TO_NON_DOCUMENT"
+	// json/ld block is not parseable
+	| "JSON_LD_UNPARSEABLE";
 
 type ExtraTypes = DeepReadonly<{extraTxtSitemaps?: string[] | undefined, extraXmlSitemaps?: string[] | undefined, extraUrls?: string[] | undefined}>;
 
@@ -339,6 +343,7 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 		}
 	});
 	const allPageErrors = (await Promise.all(Object.entries(urlsWithGroups).map(async ([url, {res, roles, links}]) => {
+		const allDocumentErrors = await (pool.run({baseUrl, url, res, roles}, {name: validateFile.name}) as ReturnType<typeof validateFile>);
 		const allLinksErrors = await Promise.all(
 			(links ?? [])
 				.filter((e, i, l) => l.findIndex((e2) => {
@@ -359,7 +364,7 @@ export const validate = (dir: string, baseUrl: string, indexName: string = "inde
 						};
 					});
 			}));
-		return allLinksErrors;
+		return [...allLinksErrors, ...allDocumentErrors];
 	}))).flat(2);
 	return [...allPageErrors, ...extraLinksErrors];
 }
@@ -402,7 +407,7 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 								if (res.data === null) {
 									return [];
 								}
-								return getLinks({baseUrl, url: fetchBase.url, role: fetchBase.role, res: res as FoundPageFetchResult});
+								return (pool.run({baseUrl, url: fetchBase.url, role: fetchBase.role, res: res as FoundPageFetchResult}, {name: getLinks.name}) as ReturnType<typeof getLinks>);
 							}));
 						}
 						const linksInJsonsWithNewFilesNewConfig = (await getLinksShallow(dir, baseUrl, indexName)(fetchBases.filter(({role}) => role.type === "json"))).flat();
