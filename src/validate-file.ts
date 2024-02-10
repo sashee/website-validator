@@ -22,6 +22,8 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 			return [];
 		}
 	})();
+	// TODO: validate rss item can have 1 link and 1 guid
+	// TODO: validate atom item can have 1 id
 	return [...allDocumentErrors];
 }
 

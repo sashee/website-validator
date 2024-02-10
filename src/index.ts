@@ -14,6 +14,7 @@ import util from "node:util";
 import {DeepReadonly} from "ts-essentials";
 import {pool} from "./worker-runner.js";
 import {validateFile, getLinks} from "./worker.js";
+import xml2js from "xml2js";
 
 export type FileFetchResult = {
 	headers: [string, string][],
@@ -375,10 +376,15 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 			async (originalFetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, originalExtras: ExtraTypes): Promise<{
 				removedPermanentUrls: DeepReadonly<{url: string, location: LinkLocation}[]>,
 				nonForwardCompatibleJsonLinks: DeepReadonly<{url: string, location: LinkLocation}[]>,
+				feedGuidsChanged: DeepReadonly<{url: string, feedUrl: string, originalGuid: string, newGuid: string}[]>,
 			}> => {
-				const getAllLinks = (dir: string, baseUrl: string, indexName: string) =>
-					async (fetchBases: typeof originalFetchBases, extras: typeof originalExtras) => {
-						const files = await fetchFileGraph(dir, baseUrl, indexName)(fetchBases, extras);
+				const [originalFileGraph, newFileGraph] = await Promise.all([
+					fetchFileGraph(originalDir, originalBaseUrl, originalIndexName)(originalFetchBases, originalExtras),
+					fetchFileGraph(dir, baseUrl, indexName)(fetchBases, extras),
+				]);
+
+				const getAllLinks = (files: typeof originalFileGraph) =>
+					async (extras: typeof originalExtras) => {
 						const extraLinks = await getExtraLinks(extras)
 						const allLinks: DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]> = [
 							...getLinksFromFileGraph(files),
@@ -387,15 +393,15 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 
 						return allLinks;
 					};
-				const getAllPermanentLinks = (dir: string, baseUrl: string, indexName: string) =>
-					async (fetchBases: typeof originalFetchBases, extras: typeof originalExtras) => {
-						return (await getAllLinks(dir, baseUrl, indexName)(fetchBases, extras))
+				const getAllPermanentLinks = (files: typeof originalFileGraph) =>
+					async (extras: typeof originalExtras) => {
+						return (await getAllLinks(files)(extras))
 							.filter(({asserts}) => asserts.some(({type}) => type === "permanent"));
 					};
-				const [removedPermanentUrls, nonForwardCompatibleJsonLinks] = await Promise.all([
+				const [removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged] = await Promise.all([
 					(async () => {
-						const originalPermanentLinks = await getAllPermanentLinks(originalDir, originalBaseUrl, originalIndexName)(originalFetchBases, originalExtras);
-						const newPermanentLinks = await getAllPermanentLinks(dir, baseUrl, indexName)(fetchBases, extras);
+						const originalPermanentLinks = await getAllPermanentLinks(originalFileGraph)(originalExtras);
+						const newPermanentLinks = await getAllPermanentLinks(newFileGraph)(extras);
 						return  originalPermanentLinks.filter((link) => {
 							return !newPermanentLinks.some(({url}) => link.url === url);
 						});
@@ -415,8 +421,80 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 
 						return linksInJsonsWithNewFilesNewConfig.filter((link) => !linksInJsonsWithNewFilesOriginalConfig.some((l2) => deepEqual(link, l2)));
 					})(),
+					(async () => {
+						const [changedRssItems, changedAtomItems] = await Promise.all([
+							(async () => {
+								const oldRssFiles = originalFileGraph.filter(({role}) => role.type === "rss");
+								const newRssFiles = newFileGraph.filter(({role}) => role.type === "rss");
+								const existingRssFiles = newRssFiles.map((newFile) => [newFile, oldRssFiles.find((oldFile) => newFile.url === oldFile.url)] as const).filter(([newFile, oldFile]) => oldFile !== undefined && oldFile.res.data !== null && newFile.res.data !== null);
+								const changedRssGuids = await Promise.all(existingRssFiles.map(async ([newFile, oldFile]) => {
+									const getRssItems = async (file: string) => {
+										const contents = await fs.readFile(file);
+										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
+										return (parsed.rss.channel as {item: {link: [string], guid: [string]}[]}[]).flatMap((channel) => (channel.item.map((c) => ({link: c.link, guid: c.guid}))).flatMap(({link, guid}) => ({link, guid}))).flatMap(({link, guid}) => {
+											return {
+												link: link[0],
+												guid: guid[0],
+											}
+										});
+									}
+									const originalRssItems = await getRssItems(oldFile!.res.data!);
+									const newRssItems = await getRssItems(newFile.res.data!);
+									return originalRssItems.flatMap(({link, guid}) => {
+										const matchingItem = newRssItems.find((item) => item.link === link);
+										if (matchingItem && matchingItem.guid !== guid) {
+											return [{
+												url: link,
+												feedUrl: newFile.url,
+												originalGuid: guid,
+												newGuid: matchingItem.guid,
+											}];
+										}else {
+											return [];
+										}
+									})
+								}));
+								return changedRssGuids.flat();
+							})(),
+							(async () => {
+								const oldAtomFiles = originalFileGraph.filter(({role}) => role.type === "atom");
+								const newAtomFiles = newFileGraph.filter(({role}) => role.type === "atom");
+								const existingAtomFiles = newAtomFiles.map((newFile) => [newFile, oldAtomFiles.find((oldFile) => newFile.url === oldFile.url)] as const).filter(([newFile, oldFile]) => oldFile !== undefined && oldFile.res.data !== null && newFile.res.data !== null);
+								const changedAtomGuids = await Promise.all(existingAtomFiles.map(async ([newFile, oldFile]) => {
+									const getAtomItems = async (file: string) => {
+										const contents = await fs.readFile(file);
+										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
+										return (parsed.feed.entry as {link: [{$: {href: string}}], id: [string]}[]).flatMap((entry) => ({href: entry.link[0].$.href, id: entry.id[0]})).map(({href, id}) => {
+											return {
+												link: href,
+												id,
+											};
+										});
+									};
+									const originalAtomItems = await getAtomItems(oldFile!.res.data!);
+									const newAtomItems = await getAtomItems(newFile.res.data!);
+									return originalAtomItems.flatMap(({link, id}) => {
+										const matchingItem = newAtomItems.find((item) => item.link === link);
+										if (matchingItem && matchingItem.id !== id) {
+											return [{
+												url: link,
+												feedUrl: newFile.url,
+												originalGuid: id,
+												newGuid: matchingItem.id,
+											}];
+										}else {
+											return [];
+										}
+									})
+								}));
+								return changedAtomGuids.flat();
+
+							})(),
+						]);
+						return [...changedRssItems, ...changedAtomItems];
+					})(),
 				])
 
-				return {removedPermanentUrls, nonForwardCompatibleJsonLinks};
+				return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged};
 			}
 

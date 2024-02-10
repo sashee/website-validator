@@ -9,4 +9,5 @@ process.env["NODE_NO_WARNINGS"] = "1";
 
 export const pool = new Piscina({
   filename: path.resolve(__dirname, "worker.js"),
+	...process.env["MAX_THREADS"] ? {maxThreads: Number(process.env["MAX_THREADS"])} : {},
 });
