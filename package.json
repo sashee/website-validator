@@ -38,13 +38,13 @@
     "get-port": "^7.0.0",
     "html-validate": "^8.9.1",
     "jmespath": "^0.16.0",
-    "jsdom": "^23.2.0",
+    "jsdom": "^24.0.0",
     "mime": "^4.0.1",
-    "piscina": "^4.2.1",
-    "postcss": "^8.4.33",
+    "piscina": "^4.3.1",
+    "postcss": "^8.4.35",
     "robots-parser": "^3.0.1",
     "rxjs": "^7.8.1",
-    "srcset": "^5.0.0",
+    "srcset": "^5.0.1",
     "xml2js": "^0.6.2"
   }
 }
