@@ -23,6 +23,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 		}
 	})();
 	// TODO: validate rss item can have 1 link and 1 guid
+	// TODO: if rss.item.guid isPermalink=true or missing then validate target URL
 	// TODO: validate atom item can have 1 id
 	return [...allDocumentErrors];
 }

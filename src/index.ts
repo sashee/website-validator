@@ -430,11 +430,11 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 								const changedRssGuids = await Promise.all(existingRssFiles.map(async ([newFile, oldFile]) => {
 									const getRssItems = async (file: string) => {
 										const contents = await fs.readFile(file);
-										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-										return (parsed.rss.channel as {item: {link: [string], guid: [string]}[]}[]).flatMap((channel) => (channel.item.map((c) => ({link: c.link, guid: c.guid}))).flatMap(({link, guid}) => ({link, guid}))).flatMap(({link, guid}) => {
+										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"), {explicitCharkey: true});
+										return (parsed.rss.channel as {item: {link: [{_: string}], guid: [{_: string}]}[]}[]).flatMap((channel) => (channel.item.map((c) => ({link: c.link, guid: c.guid}))).flatMap(({link, guid}) => ({link, guid}))).flatMap(({link, guid}) => {
 											return {
-												link: link[0],
-												guid: guid[0],
+												link: link[0]._,
+												guid: guid[0]._,
 											}
 										});
 									}
@@ -463,8 +463,8 @@ export const compareVersions = (dir: string, baseUrl: string, indexName: string 
 								const changedAtomGuids = await Promise.all(existingAtomFiles.map(async ([newFile, oldFile]) => {
 									const getAtomItems = async (file: string) => {
 										const contents = await fs.readFile(file);
-										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-										return (parsed.feed.entry as {link: [{$: {href: string}}], id: [string]}[]).flatMap((entry) => ({href: entry.link[0].$.href, id: entry.id[0]})).map(({href, id}) => {
+										const parsed = await xml2js.parseStringPromise(contents.toString("utf8"), {explicitCharkey: true});
+										return (parsed.feed.entry as {link: [{$: {href: string}}], id: [{_: string}]}[]).flatMap((entry) => ({href: entry.link[0].$.href, id: entry.id[0]._})).map(({href, id}) => {
 											return {
 												link: href,
 												id,

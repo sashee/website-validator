@@ -224,7 +224,14 @@ https://example.com/${nextFailId()}.html
 	<item>
 		<title>Using worker pools in NodeJs</title>
 		<link>${failId}</link>
-		<guid>https://advancedweb.hu/using-worker-pools-in-nodejs</guid>
+		<guid isPermalink="false">https://advancedweb.hu/using-worker-pools-in-nodejs</guid>
+		<pubDate>Tue, 06 Feb 2024 00:00:00 +0000</pubDate>
+		<description>abc</description>
+	</item>
+	<item>
+		<title>second</title>
+		<link>https://example.com/abc</link>
+		<guid isPermalink="false">second</guid>
 		<pubDate>Tue, 06 Feb 2024 00:00:00 +0000</pubDate>
 		<description>abc</description>
 	</item>
@@ -247,7 +254,14 @@ https://example.com/${nextFailId()}.html
 	<item>
 		<title>Using worker pools in NodeJs</title>
 		<link>${failId}</link>
-		<guid>changed</guid>
+		<guid isPermalink="false">changed</guid>
+		<pubDate>Tue, 06 Feb 2024 00:00:00 +0000</pubDate>
+		<description>abc</description>
+	</item>
+	<item>
+		<title>second</title>
+		<link>https://example.com/abc</link>
+		<guid isPermalink="false">second</guid>
 		<pubDate>Tue, 06 Feb 2024 00:00:00 +0000</pubDate>
 		<description>abc</description>
 	</item>
@@ -295,6 +309,13 @@ https://example.com/${nextFailId()}.html
 		<id>https://advancedweb.hu/using-worker-pools-in-nodejs</id>
 		<content type="html">abc</content>
 	</entry>
+	<entry>
+		<title>second</title>
+		<link href="https://example.com/abc"/>
+		<updated>2024-02-06T00:00:00+00:00</updated>
+		<id>second</id>
+		<content type="html">abc</content>
+	</entry>
 </feed>
 				`
 			}])((originalDir) => {
@@ -317,6 +338,13 @@ https://example.com/${nextFailId()}.html
 		<link href="${failId}"/>
 		<updated>2024-02-06T00:00:00+00:00</updated>
 		<id>changed</id>
+		<content type="html">abc</content>
+	</entry>
+	<entry>
+		<title>second</title>
+		<link href="https://example.com/abc"/>
+		<updated>2024-02-06T00:00:00+00:00</updated>
+		<id>second</id>
 		<content type="html">abc</content>
 	</entry>
 </feed>
