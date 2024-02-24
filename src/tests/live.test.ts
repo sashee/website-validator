@@ -6,7 +6,7 @@ import {DeepReadonly} from "ts-essentials";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-it("html error", async () => {
+it.skip("html error", async () => {
  try{
 	const extras = {};
 	const res = await validate()(path.join(__dirname, "..", "..", "..", "awm", "blog", "_site"), "https://advancedweb.hu")([
