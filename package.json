@@ -16,7 +16,7 @@
     "test": "npm run build && node --test dist/**/*.test.js",
     "test_dev": "TS_NODE_TRANSPILE_ONLY=true node --watch --test --test-reporter='./src/tests/test-reporter.ts' --loader ts-node/esm --test-name-pattern=$npm_config_tests src/**/*.test.ts",
     "build": "tsc --build && npm run copy_static_files",
-    "clean": "tsc --build --clean && npm run copy_static_files",
+    "clean": "tsc --build --clean",
     "prepare": "npm run clean && npm run build",
     "copy_static_files": "cp src/tests/slick.woff2 dist/tests/slick.woff2 && cp src/.npmignore dist/.npmignore"
   },
