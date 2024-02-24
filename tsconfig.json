@@ -20,7 +20,6 @@
     "src/**/*.*"
   ],
 	"exclude": [
-		"**/*.test.ts",
 		"node_modules/fast-equals/dist/**/*.d.ts"
 	]
 }

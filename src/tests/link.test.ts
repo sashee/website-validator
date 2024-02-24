@@ -2,6 +2,11 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {initFailIds, setupTestFiles} from "./testutils.js";
+import fs from "node:fs/promises";
+import url from "url";
+import path from "node:path";
+
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 describe("links", () => {
 	it("inside html", async () => {
@@ -27,7 +32,7 @@ describe("links", () => {
 	</body>
 </html>
 			`
-		}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -69,7 +74,7 @@ describe("links", () => {
 	</body>
 </html>
 			`},
-		])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -146,7 +151,7 @@ describe("links", () => {
 	</body>
 </html>
 			`},
-		])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -169,11 +174,53 @@ describe("links", () => {
 	</body>
 </html>
 			`
-		}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
 			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+		});
+	});
+	it("in font-face urls", async () => {
+		const {nextFailId, getFailIds} = initFailIds();
+		// from https://github.com/kenwheeler/slick/blob/e014f8878fb4b21cd367cc5c22a3107cea461278/slick/fonts/slick.woff2
+		const woffContents = await fs.readFile(path.resolve(__dirname, "slick.woff2"));
+		const errors = await setupTestFiles([
+			{
+				filename: "index.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+		<link rel="stylesheet", type="text/css", href="style.css">
+	</head>
+	<body>
+	</body>
+</html>
+			`
+		},
+			{
+				filename: "style.css",
+				contents: `
+@font-face {
+	font-family: "Font Awesome 6 Brands";
+	font-style: normal;
+	font-weight: 400;
+	font-display: block;
+	src: url("/abc.woff2") format("woff2"), url("${nextFailId()}") format("woff2"), url(/abc.woff2) format("woff2"), url(${nextFailId()}) format("woff2");
+}
+			`
+		},
+		{
+			filename: "abc.woff2",
+			contents: woffContents,
+		},
+		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		const failIds = getFailIds();
+		assert.equal(errors.length, failIds.length);
+		failIds.forEach((failId, index) => {
+			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "css" && error.location.location.target.includes(failId)), `Should have an error but did not: ${index}`);
 		});
 	});
 });
@@ -201,7 +248,7 @@ https://example.com/${nextFailId()}.html
 	</body>
 </html>
 				`
-			}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap1, txtSitemap2]}));
+			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap1, txtSitemap2]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -236,7 +283,7 @@ body {
 }
 				`
 				},
-			])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap]}));
+			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -278,7 +325,7 @@ body {
 	</body>
 </html>
 				`
-			}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap1, xmlSitemap2]}));
+			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap1, xmlSitemap2]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -318,7 +365,7 @@ body {
 }
 				`
 				},
-			])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap]}));
+			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -345,7 +392,7 @@ body {
 	</body>
 </html>
 				`
-			}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
+			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -379,7 +426,7 @@ body {
 }
 					`
 				},
-			])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
+			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 		});

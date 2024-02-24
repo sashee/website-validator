@@ -25,7 +25,7 @@ describe("documents", () => {
 	</body>
 </html>
 				`
-			}])((dir) => validate(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {

@@ -13,11 +13,12 @@
   ],
   "repository": "github:sashee/website-validator",
   "scripts": {
-    "test": "TS_NODE_TRANSPILE_ONLY=true node --test --loader ts-node/esm src/**/*.test.ts",
-    "test_dev": "TS_NODE_TRANSPILE_ONLY=true MAX_THREADS=1 node --watch --test --test-reporter='./src/tests/test-reporter.ts' --loader ts-node/esm --test-name-pattern=$npm_config_tests src/**/*.test.ts",
-    "build": "tsc --build",
-    "clean": "tsc --build --clean",
-    "prepare": "npm run clean && npm run build"
+    "test": "npm run build && node --test dist/**/*.test.js",
+    "test_dev": "TS_NODE_TRANSPILE_ONLY=true node --watch --test --test-reporter='./src/tests/test-reporter.ts' --loader ts-node/esm --test-name-pattern=$npm_config_tests src/**/*.test.ts",
+    "build": "tsc --build && npm run copy_static_files",
+    "clean": "tsc --build --clean && npm run copy_static_files",
+    "prepare": "npm run clean && npm run build",
+		"copy_static_files": "cp -r src/tests/*.woff2 dist/tests/ && cp src/.npmignore dist/.npmignore"
   },
   "author": {
     "name": "Tamas Sallai",
@@ -25,12 +26,12 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "ts-node": "^10.9.2",
-    "ts-essentials": "^9.4.1",
     "@types/deep-equal": "^1.0.4",
     "@types/jmespath": "^0.15.2",
     "@types/jsdom": "^21.1.6",
     "@types/xml2js": "^0.4.14",
+    "ts-essentials": "^9.4.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
@@ -40,11 +41,11 @@
     "jmespath": "^0.16.0",
     "jsdom": "^24.0.0",
     "mime": "^4.0.1",
-    "piscina": "^4.3.1",
     "postcss": "^8.4.35",
     "robots-parser": "^3.0.1",
     "rxjs": "^7.8.1",
     "srcset": "^5.0.1",
+    "with-worker-threads": "^0.1.0",
     "xml2js": "^0.6.2"
   }
 }

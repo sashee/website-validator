@@ -13,9 +13,9 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 			return allJSONLDs.flatMap((jsonLd) => {
 				try {
 					JSON.parse(jsonLd.innerHTML);
-					return [];
+					return [] as const;
 				}catch {
-					return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {type: "html", element: {outerHTML: jsonLd.outerHTML, selector: getElementLocation(jsonLd)}}}}];
+					return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {type: "html", element: {outerHTML: jsonLd.outerHTML, selector: getElementLocation(jsonLd)}}}}] as const;
 				}
 			});
 		}else {

@@ -2,14 +2,11 @@ import Rx from "rxjs";
 import RxJsOperators from "rxjs/operators";
 import {UrlRole, toCanonical, FoundPageFetchResult, isInternalLink, FileFetchResult} from "./index.js";
 import {deepEqual} from "fast-equals";
-import os from "node:os";
-import path from "node:path";
 import url from "node:url";
 import {DeepReadonly} from "ts-essentials";
-import {pool} from "./worker-runner.js";
-import {getLinks} from "./worker.js";
+import {Pool} from "./worker-runner.js";
 
-export const recursiveFetchFiles = (fetchFile: (url: string) => Promise<DeepReadonly<FileFetchResult>>, baseUrl: string, indexName: string) => async (startUrls: DeepReadonly<{url: string, role: UrlRole}[]>) => {
+export const recursiveFetchFiles = (pool: Pool, fetchFile: (url: string) => Promise<DeepReadonly<FileFetchResult>>, baseUrl: string, indexName: string) => async (startUrls: DeepReadonly<{url: string, role: UrlRole}[]>) => {
 	if (startUrls.length === 0) {
 		return [];
 	}
@@ -38,7 +35,7 @@ export const recursiveFetchFiles = (fetchFile: (url: string) => Promise<DeepRead
 		}, 10),
 		RxJsOperators.mergeMap(async ({url, role, res}) => {
 			if (res.data !== null) {
-				const links = await (pool.run({baseUrl: toCanonical(baseUrl, indexName)(url), url, role, res: res as FoundPageFetchResult}, {name: getLinks.name}) as ReturnType<typeof getLinks>);
+				const links = await pool!.getLinks({baseUrl: toCanonical(baseUrl, indexName)(url), url, role, res: res as FoundPageFetchResult});
 				const discoveredUrls = links.map((link) => ({url: toCanonical(url, indexName)(link.url), role: link.role}));
 				discoveredUrls.filter(({url}) => isInternalLink(baseUrl)(url)).forEach(({url, role}) => urlSubject.next({url, role}));
 				return {url, role, res: res as FoundPageFetchResult, links};

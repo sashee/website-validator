@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import path from "node:path";
 
-export const setupTestFiles = (files: {filename: string, contents: string}[]) => async <T> (fn: (dir: string) => T) => {
+export const setupTestFiles = (files: {filename: string, contents: string | Buffer}[]) => async <T> (fn: (dir: string) => T) => {
 	return withTempDir(async (dir) => {
 		await Promise.all(files.map(async ({filename, contents}) => {
 			const name = path.join(dir, filename);

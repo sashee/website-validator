@@ -138,9 +138,20 @@ export const extractAllUrlsFromCss = async (css: string) => {
 								)
 							)
 						)
-						const matchedUrl = url.match(/^url\("?(?<data>.*)"?\)$/);
-						assert(matchedUrl, `could not parse css url: ${url} , decl.value: ${decl.value}`);
-						result.push({url: matchedUrl.groups!["data"]!, parent, prop: decl.prop, position});
+						const matchedUrl = (() => {
+							const res = url.match(/^url\((?<data>.*)\)$/);
+							assert(res, `could not parse css url: ${url} , decl.value: ${decl.value}`);
+							const resString = res!.groups!["data"]
+							if (resString.startsWith("\"") && resString.endsWith("\"")) {
+								if (resString.length === 1) {
+									throw new Error("Whops");
+								}
+								return resString.substring(1, resString.length - 1);
+							}else {
+								return resString;
+							}
+						})();
+						result.push({url: matchedUrl, parent, prop: decl.prop, position});
 					});
 				}
 			}

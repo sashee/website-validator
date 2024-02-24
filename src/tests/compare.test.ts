@@ -36,7 +36,7 @@ https://example.com/${nextFailId()}.html
 					`
 				},
 			])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					(fetchBases, {})
 					(originalDir, "https://example.com", "index.html")
@@ -98,7 +98,7 @@ https://example.com/${nextFailId()}.html
 					`
 				},
 			])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					(fetchBases, {})
 					(originalDir, "https://example.com", "index.html")
@@ -124,7 +124,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({urls: ["https://example.com/a.html"]}),
 			}])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					(fetchBases, {})
 					(originalDir, "https://example.com", "index.html")
@@ -148,7 +148,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					(originalDir, "https://example.com", "index.html")
@@ -172,7 +172,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					(originalDir, "https://example.com", "index.html")
@@ -195,7 +195,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/a.html`]}),
 			}])((newDir) => {
-				return compareVersions
+				return compareVersions({concurrency: 1})
 					(newDir, "https://example.com", "index.html")
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					(originalDir, "https://example.com", "index.html")
@@ -270,7 +270,7 @@ https://example.com/${nextFailId()}.html
 						`
 					},
 				])((newDir) => {
-					return compareVersions
+					return compareVersions({concurrency: 1})
 						(newDir, "https://example.com", "index.html")
 						(fetchBases, {})
 						(originalDir, "https://example.com", "index.html")
@@ -351,7 +351,7 @@ https://example.com/${nextFailId()}.html
 						`
 					},
 				])((newDir) => {
-					return compareVersions
+					return compareVersions({concurrency: 1})
 						(newDir, "https://example.com", "index.html")
 						(fetchBases, {})
 						(originalDir, "https://example.com", "index.html")

@@ -148,10 +148,10 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 					return {
 						role: {type: "asset"},
 						asserts: [{type: "font"}],
-						location: {type: "css", position}
+						location: {type: "css", position, target: url}
 					} as const;
 				}else {
-					return {role: {type: "asset"}, asserts: [], location: {type: "css", position}} as const;
+					return {role: {type: "asset"}, asserts: [], location: {type: "css", position, target: url}} as const;
 				}
 			})();
 			return {url, role, asserts: asserts, location};
