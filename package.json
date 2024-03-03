@@ -37,7 +37,7 @@
   "dependencies": {
     "fast-equals": "^5.0.1",
     "get-port": "^7.0.0",
-    "html-validate": "^8.9.1",
+    "html-validate": "^8.11.1",
     "jmespath": "^0.16.0",
     "jsdom": "^24.0.0",
     "mime": "^4.0.1",
@@ -45,7 +45,7 @@
     "robots-parser": "^3.0.1",
     "rxjs": "^7.8.1",
     "srcset": "^5.0.1",
-    "with-worker-threads": "^0.1.0",
+    "with-worker-threads": "^0.2.0",
     "xml2js": "^0.6.2"
   }
 }
