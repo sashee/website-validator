@@ -1,7 +1,3 @@
-import {startStaticFileServer} from "./utils.js";
-import getPort from "get-port";
-import {JSDOM} from "jsdom";
-import crypto from "crypto";
 import path from "node:path";
 import {deepEqual} from "fast-equals";
 import fs from "node:fs/promises";
@@ -16,15 +12,16 @@ import xml2js from "xml2js";
 
 export type FileFetchResult = {
 	headers: [string, string][],
-	data: string | null,
+	data: {
+		path: string,
+		mtime: number,
+	} | null,
 }
 
 export type FoundPageFetchResult = {
 	headers: FileFetchResult["headers"],
 	data: NonNullable<FileFetchResult["data"]>,
 }
-
-export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
 export const toCanonical = (baseUrl: string, indexName: string) => (url: string) => {
 	const urlObj = new URL(url, baseUrl);
@@ -69,8 +66,9 @@ type AssertFont = {type: "font"};
 type AssertImageSize = {type: "imageSize", width: number, height: number};
 type AssertContentType = {type: "content-type", contentType: readonly string[]};
 type AssertPermanent = {type: "permanent"};
+type AssertDocument = {type: "document"};
 
-export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent;
+export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent | AssertDocument;
 
 export type LinkLocation = {
 	type: "html",
@@ -122,90 +120,147 @@ export type LinkLocation = {
 	index: number,
 }
 
-type ErrorTypes =
-	// internal link points to a target that is not found
-	"TARGET_NOT_FOUND"
-	// hash part of a link points to a place that is not a document
-	| "HASH_POINTS_TO_NON_DOCUMENT"
-	// hash does not exist on the target page
-	| "HASH_TARGET_NOT_FOUND"
-	// link points to a place that is not a document
-	| "LINK_POINTS_TO_NON_DOCUMENT"
-	// json/ld block is not parseable
-	| "JSON_LD_UNPARSEABLE";
+export type LinkErrorTypes = LinkError["type"];
 
-type ValidationResultType = {
-	type: ErrorTypes,
+type LinkError = {
+	// internal link points to a target that is not found
+	type: "TARGET_NOT_FOUND",
 	location: {
 		url: string,
 		location: LinkLocation,
 	}
+} | {
+	// hash part of a link points to a place that is not a document
+	type: "HASH_POINTS_TO_NON_DOCUMENT",
+	location: {
+		url: string,
+		location: LinkLocation,
+	}
+} | {
+	// hash does not exist on the target page
+	type: "HASH_TARGET_NOT_FOUND",
+	location: {
+		url: string,
+		location: LinkLocation,
+	}
+} | {
+	// link points to a place that is not a document
+	type: "LINK_POINTS_TO_NON_DOCUMENT",
+	location: {
+		url: string,
+		location: LinkLocation,
+	}
+} | {
+	// content type not matching
+	type: "CONTENT_TYPE_MISMATCH",
+	//expectedContentTypes: string[],
+	//actualContentType: string,
+	location: {
+		url: string,
+		location: LinkLocation,
+	}
+
 }
+
+type NotFoundError = {
+		type: "NOT_FOUND",
+		location: {
+			url: string,
+			location: {
+				type: "fetchBase",
+				index: number,
+			},
+		}
+	}
+
+type DocumentErrors = {
+	type: "JSON_LD_UNPARSEABLE",
+	location: {
+		url: string,
+		location: {outerHTML: string, selector: string},
+	}
+}
+
+type ValidationResultType = LinkError
+| DocumentErrors
+| NotFoundError
 
 type ExtraTypes = DeepReadonly<{extraTxtSitemaps?: string[] | undefined, extraXmlSitemaps?: string[] | undefined, extraUrls?: string[] | undefined}>;
 
-const fetchSingleFile = (dir: string, baseUrl: string, indexName: string) => (url: string) => {
+const defaultContentTypes: NonNullable<TargetConfig["contentTypes"]> = (filePath) => {
+	return mime.getType(path.extname(filePath)) ?? "application/octet-stream";
+};
+
+const fetchSingleFile = (baseUrl: string, targetConfig: TargetConfig) => (url: string) => {
+	const indexName = targetConfig.indexName ?? "index.html";
+	const contentTypes = targetConfig.contentTypes ?? defaultContentTypes;
 	const fetchFile = (() => {
 		return async (url: string): Promise<DeepReadonly<FileFetchResult>> => {
 			if (!isInternalLink(url)) {
 				throw new Error(`Link not internal: ${url}`);
 			}
-			const filePath = path.join(dir, toRelativeUrl(baseUrl)(toCanonical(baseUrl, indexName)(url)));
+			const fileUrl = toRelativeUrl(baseUrl)(toCanonical(baseUrl, indexName)(url));
+			const filePath = path.join(targetConfig.dir, fileUrl);
 			try {
-				await fs.access(filePath, fs.constants.R_OK);
+				const stat = await fs.stat(filePath);
 				return {
 					headers: [
-						["content-type", mime.getType(path.extname(filePath)) ?? "application/octet-stream"]
+						["content-type", contentTypes(fileUrl)],
 					],
-					data: filePath,
+					data: {path: filePath, mtime: stat.mtimeMs},
 				}
-			}catch {
-				return {
-					headers: [],
-					data: null,
-				};
+			}catch(e: any) {
+				if (e.code === "ENOENT") {
+					return {
+						headers: [],
+						data: null,
+					};
+				}else {
+					throw e;
+				}
 			}
 		}
 	})();
 	return fetchFile(url);
 }
 
-const fetchFileGraph = (pool: Pool) => (dir: string, baseUrl: string, indexName: string) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes) => {
-	const port = await getPort();
-	const app = await startStaticFileServer(dir, port, indexName);
-	try {
-		const fetchFile = (() => {
-			return async (url: string): Promise<DeepReadonly<FileFetchResult>> => {
-				if (!isInternalLink(url)) {
-					throw new Error(`Link not internal: ${url}`);
+export const fetchFileGraph = (pool: Pool) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes) => {
+	const indexName = targetConfig.indexName ?? "index.html";
+	const contentTypes = targetConfig.contentTypes ?? defaultContentTypes;
+	const fetchFile = (() => {
+		return async (url: string): Promise<DeepReadonly<FileFetchResult>> => {
+			if (!isInternalLink(url)) {
+				throw new Error(`Link not internal: ${url}`);
+			}
+			const fileUrl = toRelativeUrl(baseUrl)(toCanonical(baseUrl, indexName)(url));
+			const filePath = path.join(targetConfig.dir, fileUrl);
+			try {
+				const stat = await fs.stat(filePath);
+				return {
+					headers: [
+						["content-type", contentTypes(fileUrl)],
+					],
+					data: {path: filePath, mtime: stat.mtimeMs},
 				}
-				const filePath = path.join(dir, toRelativeUrl(baseUrl)(toCanonical(baseUrl, indexName)(url)));
-				try {
-					await fs.access(filePath, fs.constants.R_OK);
-					return {
-						headers: [
-							["content-type", mime.getType(path.extname(filePath)) ?? "application/octet-stream"]
-						],
-						data: filePath,
-					}
-				}catch {
+			}catch(e: any) {
+				if (e.code === "ENOENT") {
 					return {
 						headers: [],
 						data: null,
 					};
+				}else {
+					throw e;
 				}
 			}
-		})();
+		}
+	})();
 
-		return await recursiveFetchFiles(pool, fetchFile, baseUrl, indexName)([
-			...fetchBases,
-			...(await Promise.all((extras.extraXmlSitemaps ?? []).map(async (xmlSitemap) => getUrlsFromSitemap(xmlSitemap, "xml")))).flat(),
-			...(await Promise.all((extras.extraTxtSitemaps ?? []).map(async (txtSitemap) => getUrlsFromSitemap(txtSitemap, "txt")))).flat(),
-			...(extras.extraUrls ?? []).map((url) => ({url, role: {type: "asset"}} as const)),
-		]);
-	}finally {
-		await new Promise((res) => app.close(res));
-	}
+	return await recursiveFetchFiles(pool, fetchFile, baseUrl, indexName)([
+		...fetchBases,
+		...(await Promise.all((extras.extraXmlSitemaps ?? []).map(async (xmlSitemap) => getUrlsFromSitemap(xmlSitemap, "xml")))).flat(),
+		...(await Promise.all((extras.extraTxtSitemaps ?? []).map(async (txtSitemap) => getUrlsFromSitemap(txtSitemap, "txt")))).flat(),
+		...(extras.extraUrls ?? []).map((url) => ({url, role: {type: "asset"}} as const)),
+	]);
 }
 
 const getExtraLinks = async (extras: ExtraTypes) => {
@@ -213,6 +268,7 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 		...(await Promise.all((extras.extraXmlSitemaps ?? []).map(async (xmlSitemap, sitemapIndex) => (await getUrlsFromSitemap(xmlSitemap, "xml")).map(({location, ...rest}) => {
 		return {
 			...rest,
+			asserts: [{type: "document"}],
 			location: {
 				...location,
 				sitemaplocation: {
@@ -224,6 +280,7 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 		...(await Promise.all((extras.extraTxtSitemaps ?? []).map(async (txtSitemap, sitemapIndex) => (await getUrlsFromSitemap(txtSitemap, "txt")).map(({location, ...rest}) => {
 			return {
 				...rest,
+				asserts: [{type: "document"}],
 				location: {
 					...location,
 					sitemaplocation: {
@@ -236,93 +293,15 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 	];
 }
 
-const getLinksFromFileGraph = (files: Awaited<ReturnType<ReturnType<ReturnType<typeof fetchFileGraph>>>>) => {
-	return files
-		.flatMap(({links}) => links ?? [])
-		.map(({url, role, asserts, location}) => ({url, role, asserts, location}));
-};
+type TargetConfig = {dir: string, indexName?: string, contentTypes?: (path: string) => string};
 
-export const validate = (options?: {concurrency?: number}) => (dir: string, baseUrl: string, indexName: string = "index.html") => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes): Promise<Array<ValidationResultType>> => {
+export const validate = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes): Promise<Array<ValidationResultType>> => {
 	assert((extras.extraUrls ?? []).every((url) => isInternalLink(baseUrl)(url)), "extraUrls must be internal links");
+	const indexName = targetConfig.indexName ?? "index.html";
 	return withPool(options?.concurrency)(async (pool) => {
-		const files = await fetchFileGraph(pool!)(dir, baseUrl, indexName)(fetchBases, extras);
-		const extraLinks = await getExtraLinks(extras)
-		const allLinks: DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]> = [
-			...getLinksFromFileGraph(files),
-			...extraLinks,
-		];
+		const fetchedFiles = await fetchFileGraph(pool!)(baseUrl, targetConfig)(fetchBases, extras);
 
-		const linksPointingToPages = allLinks.reduce((memo, link) => {
-			const canonical = toCanonical(baseUrl, indexName)(link.url);
-			if (memo[canonical]) {
-				if (memo[canonical].some((e) => deepEqual(e, link))) {
-					return memo;
-				}else {
-					memo[canonical].push(link);
-					return memo;
-				}
-			}else {
-				memo[canonical] = [link];
-				return memo;
-			}
-		}, {} as {[canonicalUrl: string]: typeof allLinks[0][]});
-		const checkLinks = async (links: typeof allLinks): Promise<{type: ErrorTypes, link: typeof allLinks[0]}[]> => {
-			if (links.length === 0) {
-				return [];
-			}
-			const canonical = toCanonical(baseUrl, indexName)(links[0].url);
-			assert(links.every(({url}) => toCanonical(baseUrl, indexName)(url) === canonical), `Not all links point to the same page: ${JSON.stringify(links.map(({url}) => url + " => " + toCanonical(baseUrl, indexName)(url)), undefined, 4)}`);
-			const res = (() => {
-				const found = files.find((file) => file.url === canonical);
-				assert(found, `Files must contain the canonical link, but it's missing. canonical=${canonical}`);
-				return found.res;
-			})();
-			const getContentType = (res: DeepReadonly<FileFetchResult>) => res.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
-			const contentType = getContentType(res);
-			const dom = await (async () => {
-				if (res.data && links.some(({url}) => new URL(url, baseUrl).hash !== "")) {
-					const contents = await fs.readFile(res.data);
-					return new JSDOM(contents.toString("utf8"), {url: baseUrl});
-				}else {
-					return null;
-				}
-			})();
-			return links.flatMap((link): {type: ErrorTypes, link: typeof link}[] => {
-				if (isInternalLink(baseUrl)(link.url)) {
-					if (res.data === null) {
-						return [{type: "TARGET_NOT_FOUND", link}];
-					}else {
-						if (link.role.type === "document" || contentType === "text/html") {
-							const hash = new URL(link.url, baseUrl).hash;
-							if (hash !== "") {
-								// validate hash
-								assert(dom, "dom must be parsed if there are fragment links");
-								const element = dom.window.document.getElementById(hash.substring(1));
-								if (element === null) {
-									return [{type: "HASH_TARGET_NOT_FOUND", link}];
-								}else {
-									return [];
-								}
-							}else {
-								return [];
-							}
-						}else {
-							if (new URL(link.url, baseUrl).hash !== "") {
-								return [{type: "HASH_POINTS_TO_NON_DOCUMENT", link}];
-							}else {
-								return [];
-							}
-						}
-					}
-				}else {
-					return [];
-				}
-			})
-		}
-		const allLinksWithErrors = Object.fromEntries((await Promise.all(Object.entries(linksPointingToPages).map(async ([canonicalUrl, links]) => {
-			return [canonicalUrl, await checkLinks(links.filter(({url}) => isInternalLink(baseUrl)(url)))] as const;
-		}))));
-		const urlsWithGroups = files.reduce((memo, {url, role, res, links}) => {
+		const files = fetchedFiles.reduce((memo, {url, role, res, links}) => {
 			const existing = memo[url];
 			if (memo[url]) {
 				memo[url] = {
@@ -335,53 +314,66 @@ export const validate = (options?: {concurrency?: number}) => (dir: string, base
 				memo[url] = {res, roles: [role], links} as const;
 				return memo;
 			}
-		}, {} as {[url: string]: {res: typeof files[0]["res"], roles: DeepReadonly<UrlRole[]>, links: typeof files[0]["links"]}});
+		}, {} as {[url: string]: {res: typeof fetchedFiles[0]["res"], roles: DeepReadonly<UrlRole[]>, links: typeof fetchedFiles[0]["links"]}});
 
-		const extraLinksErrors = extraLinks.flatMap((link): Array<ValidationResultType> => {
-			const page = urlsWithGroups[toCanonical(baseUrl, indexName)(link.url)];
-			if (page.res.data === null) {
-				return [{type: "TARGET_NOT_FOUND", location: {url: link.url, location: link.location}}] as const;
+		const extraLinks = await getExtraLinks(extras)
+		const allLinks: DeepReadonly<{url: string, asserts: readonly Assertion[], location: LinkLocation}[]> = [
+			...(Object.values(files).flatMap(({links}) => links === null ? [] : links.map((link) => ({url: link.url, asserts: link.asserts, location: link.location})))),
+			...extraLinks,
+		];
+
+		const notFoundErrors: NotFoundError[] = [
+			...fetchBases.map(({url}, index) => {
+				return {url, index, type: "fetchBase"} as const;
+			}),
+		].flatMap(({url, index, type}) => {
+			const canonical = toCanonical(baseUrl, indexName)(url);
+			const file = fetchedFiles.find((file) => file.url === canonical);
+			if (file === undefined || file.res.data === null) {
+				return [{
+					type: "NOT_FOUND",
+					location: {
+						url,
+						location: {
+							type,
+							index,
+						}
+					}
+				}] as const;
 			}else {
-				const contentType = page.res.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
-				if (link.role.type === "document" && contentType !== "text/html") {
-					return [{type: "LINK_POINTS_TO_NON_DOCUMENT", location: {url: link.url, location: link.location}}] as const;
-				}else {
-					return [] as const;
-				}
-				// TODO: check asserts
+				return [];
 			}
 		});
-		const allPageErrors = (await Promise.all(Object.entries(urlsWithGroups).map(async ([url, {res, roles, links}]) => {
+
+		//console.log("fetchedFiles", JSON.stringify(fetchedFiles, undefined, 4))
+		//console.log("allLinks", JSON.stringify(allLinks, undefined, 4))
+		//console.log("files", JSON.stringify(files, undefined, 4))
+		const allLinksErrors = (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
+			const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
+			if (!target) {
+				throw new Error("whops; " + toCanonical(baseUrl, indexName)(link.url));
+			}
+			return pool!.checkLink({baseUrl, indexName, target, link});
+		}))).flat(1).map(({type, link}) => {
+			return {
+				type, 
+				location: {
+					url: link.url,
+					location: link.location,
+				}
+			}
+		});
+		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles}]) => {
 			const allDocumentErrors = await pool!.validateFile({baseUrl, url, res: res as FoundPageFetchResult, roles});
-			const allLinksErrors = await Promise.all(
-				(links ?? [])
-					.filter((e, i, l) => l.findIndex((e2) => {
-						return deepEqual(e, e2);
-					}) === i)
-					.map(async (link): Promise<{type: ErrorTypes, location: {url: string, location: LinkLocation}}[]> => {
-						const foundErrors = allLinksWithErrors[toCanonical(baseUrl, indexName)(link.url)]?.filter(({link: linkWithError}) => {
-							return deepEqual(linkWithError, link)
-						});
-						assert(foundErrors);
-						return foundErrors.map(({type}) => {
-							return {
-								type,
-								location: {
-									url,
-									location: link.location,
-								},
-							};
-						});
-				}));
-			return [...allLinksErrors, ...allDocumentErrors];
+			return [...allDocumentErrors];
 		}))).flat(2);
-		return [...allPageErrors, ...extraLinksErrors];
+		return [...allPageErrors, ...notFoundErrors, ...allLinksErrors];
 	});
 }
 
-export const compareVersions = (options?: {concurrency?: number}) => (dir: string, baseUrl: string, indexName: string = "index.html") =>
+export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) =>
 	(fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes) =>
-		(originalDir: string, originalBaseUrl: string, originalIndexName: string = "index.html") =>
+		(originalBaseUrl: string, originalTargetConfig: TargetConfig) =>
 			async (originalFetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, originalExtras: ExtraTypes): Promise<{
 				removedPermanentUrls: DeepReadonly<{url: string, location: LinkLocation}[]>,
 				nonForwardCompatibleJsonLinks: DeepReadonly<{url: string, location: LinkLocation}[]>,
@@ -389,13 +381,20 @@ export const compareVersions = (options?: {concurrency?: number}) => (dir: strin
 			}> => {
 				return withPool(options?.concurrency)(async (pool) => {
 					const [originalFileGraph, newFileGraph] = await Promise.all([
-						fetchFileGraph(pool!)(originalDir, originalBaseUrl, originalIndexName)(originalFetchBases, originalExtras),
-						fetchFileGraph(pool!)(dir, baseUrl, indexName)(fetchBases, extras),
+						fetchFileGraph(pool!)(originalBaseUrl, originalTargetConfig)(originalFetchBases, originalExtras),
+						fetchFileGraph(pool!)(baseUrl, targetConfig)(fetchBases, extras),
 					]);
 
 					const getAllLinks = (files: typeof originalFileGraph) =>
 						async (extras: typeof originalExtras) => {
 							const extraLinks = await getExtraLinks(extras)
+
+							const getLinksFromFileGraph = (files: Awaited<ReturnType<ReturnType<ReturnType<typeof fetchFileGraph>>>>) => {
+								return files
+									.flatMap(({links}) => links ?? [])
+									.map(({url, role, asserts, location}) => ({url, role, asserts, location}));
+							};
+
 							const allLinks: DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]> = [
 								...getLinksFromFileGraph(files),
 								...extraLinks,
@@ -417,17 +416,17 @@ export const compareVersions = (options?: {concurrency?: number}) => (dir: strin
 							});
 						})(),
 						(async () => {
-							const getLinksShallow = (dir: string, baseUrl: string, indexName: string) => async (fetchBases: typeof originalFetchBases) => {
+							const getLinksShallow = (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: typeof originalFetchBases) => {
 								return Promise.all(fetchBases.map(async (fetchBase) => {
-									const res = await fetchSingleFile(dir, baseUrl, indexName)(fetchBase.url);
+									const res = await fetchSingleFile(baseUrl, targetConfig)(fetchBase.url);
 									if (res.data === null) {
 										return [];
 									}
 									return pool!.getLinks({baseUrl, url: fetchBase.url, role: fetchBase.role, res: res as FoundPageFetchResult});
 								}));
 							}
-							const linksInJsonsWithNewFilesNewConfig = (await getLinksShallow(dir, baseUrl, indexName)(fetchBases.filter(({role}) => role.type === "json"))).flat();
-							const linksInJsonsWithNewFilesOriginalConfig = (await getLinksShallow(dir, baseUrl, indexName)(originalFetchBases.filter(({role}) => role.type === "json"))).flat();
+							const linksInJsonsWithNewFilesNewConfig = (await getLinksShallow(baseUrl, targetConfig)(fetchBases.filter(({role}) => role.type === "json"))).flat();
+							const linksInJsonsWithNewFilesOriginalConfig = (await getLinksShallow(baseUrl, targetConfig)(originalFetchBases.filter(({role}) => role.type === "json"))).flat();
 
 							return linksInJsonsWithNewFilesNewConfig.filter((link) => !linksInJsonsWithNewFilesOriginalConfig.some((l2) => deepEqual(link, l2)));
 						})(),
@@ -448,8 +447,8 @@ export const compareVersions = (options?: {concurrency?: number}) => (dir: strin
 												}
 											});
 										}
-										const originalRssItems = await getRssItems(oldFile!.res.data!);
-										const newRssItems = await getRssItems(newFile.res.data!);
+										const originalRssItems = await getRssItems(oldFile!.res.data!.path);
+										const newRssItems = await getRssItems(newFile.res.data!.path);
 										return originalRssItems.flatMap(({link, guid}) => {
 											const matchingItem = newRssItems.find((item) => item.link === link);
 											if (matchingItem && matchingItem.guid !== guid) {
@@ -481,8 +480,8 @@ export const compareVersions = (options?: {concurrency?: number}) => (dir: strin
 												};
 											});
 										};
-										const originalAtomItems = await getAtomItems(oldFile!.res.data!);
-										const newAtomItems = await getAtomItems(newFile.res.data!);
+										const originalAtomItems = await getAtomItems(oldFile!.res.data!.path);
+										const newAtomItems = await getAtomItems(newFile.res.data!.path);
 										return originalAtomItems.flatMap(({link, id}) => {
 											const matchingItem = newAtomItems.find((item) => item.link === link);
 											if (matchingItem && matchingItem.id !== id) {
@@ -508,3 +507,4 @@ export const compareVersions = (options?: {concurrency?: number}) => (dir: strin
 					return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged};
 				})
 			}
+

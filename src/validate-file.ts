@@ -7,7 +7,7 @@ import fs from "node:fs/promises";
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>) => {
 	const allDocumentErrors = await (async () => {
 		if (roles.some(({type}) => type === "document") && res.data !== null) {
-			const contents = await fs.readFile(res.data);
+			const contents = await fs.readFile(res.data.path);
 			const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl});
 			const allJSONLDs = [...dom.window.document.querySelectorAll("script[type='application/ld+json']")];
 			return allJSONLDs.flatMap((jsonLd) => {
@@ -15,7 +15,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					JSON.parse(jsonLd.innerHTML);
 					return [] as const;
 				}catch {
-					return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {type: "html", element: {outerHTML: jsonLd.outerHTML, selector: getElementLocation(jsonLd)}}}}] as const;
+					return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {outerHTML: jsonLd.outerHTML, selector: getElementLocation(jsonLd)}}}] as const;
 				}
 			});
 		}else {

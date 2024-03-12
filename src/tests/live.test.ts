@@ -9,7 +9,7 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 it.skip("html error", async () => {
  try{
 	const extras = {};
-	const res = await validate()(path.join(__dirname, "..", "..", "..", "awm", "blog", "_site"), "https://advancedweb.hu")([
+	const res = await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
 		{url: "/", role: {type: "document"}},
 		{url: "/robots.txt", role: {type: "robotstxt"}},
 		{url: "/rss-sashee.xml", role: {type: "rss"}},
@@ -35,9 +35,9 @@ it.skip("compare", async () => {
 	//const extras = {};
 	const extras = {extraTxtSitemaps: [extraTxtSitemap], extraXmlSitemaps: [sitemapxml1]};
 	const res = await compareVersions()
-		(path.join(__dirname, "..", "..", "..", "awm", "blog", "_site"), "https://advancedweb.hu", "index.html")
+		("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})
 		(fetchBases, extras)
-		("/tmp/a/awm", "https://advancedweb.hu", "index.html")
+		("https://advancedweb.hu", {dir: "/tmp/a/awm"})
 		(fetchBases, extras)
 	console.log(JSON.stringify(res, undefined, 4));
  }catch(e) {

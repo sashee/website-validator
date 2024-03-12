@@ -32,7 +32,7 @@ describe("links", () => {
 	</body>
 </html>
 			`
-		}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -74,7 +74,7 @@ describe("links", () => {
 	</body>
 </html>
 			`},
-		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -151,9 +151,9 @@ describe("links", () => {
 	</body>
 </html>
 			`},
-		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
-		assert.equal(errors.length, failIds.length);
+		assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
 		failIds.forEach((failId, index) => {
 			assert(errors.some((error) => error.type === "HASH_TARGET_NOT_FOUND" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 		});
@@ -174,7 +174,7 @@ describe("links", () => {
 	</body>
 </html>
 			`
-		}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		failIds.forEach((failId, index) => {
@@ -216,9 +216,9 @@ describe("links", () => {
 			filename: "abc.woff2",
 			contents: woffContents,
 		},
-		])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 		const failIds = getFailIds();
-		assert.equal(errors.length, failIds.length);
+		assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
 		failIds.forEach((failId, index) => {
 			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "css" && error.location.location.target.includes(failId)), `Should have an error but did not: ${index}`);
 		});
@@ -248,7 +248,7 @@ https://example.com/${nextFailId()}.html
 	</body>
 </html>
 				`
-			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap1, txtSitemap2]}));
+			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap1, txtSitemap2]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -283,7 +283,7 @@ body {
 }
 				`
 				},
-			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap]}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraTxtSitemaps: [txtSitemap]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -325,7 +325,7 @@ body {
 	</body>
 </html>
 				`
-			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap1, xmlSitemap2]}));
+			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap1, xmlSitemap2]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -365,7 +365,7 @@ body {
 }
 				`
 				},
-			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap]}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraXmlSitemaps: [xmlSitemap]}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -392,9 +392,9 @@ body {
 	</body>
 </html>
 				`
-			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
+			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
 			const failIds = getFailIds();
-			assert.equal(errors.length, failIds.length);
+			assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
 			failIds.forEach((failId, index) => {
 				assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "extraurl" && error.location.url.includes(failId)), `Should have an error but did not: ${index}`);
 			});
@@ -426,7 +426,7 @@ body {
 }
 					`
 				},
-			])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {extraUrls: urlList}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 		});

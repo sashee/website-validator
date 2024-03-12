@@ -34,12 +34,12 @@ export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") 
 export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	if (role.type === "robotstxt") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const robots = (robotsParser)(url, contents.toString("utf8"));
 		const sitemaps = robots.getSitemaps();
 		return sitemaps.map((url, index) => ({url, role: {type: "sitemap"}, asserts: [], location: {type: "robotssitemap", index}}));
 	}else if (role.type === "sitemap") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const extension = path.extname(new URL(url).pathname);
 
 		return (await getUrlsFromSitemap(contents.toString("utf8"), extension === ".txt" ? "txt" : "xml")).map(({location, ...rest}) => {
@@ -54,25 +54,25 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 			}
 		});
 	}else if (role.type === "rss") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-		return (parsed.rss.channel as {item: {link: string[]}[]}[]).flatMap((channel, channelIndex) => (channel.item.map((c) => ({link: c.link, channelIndex}))).flatMap(({link, channelIndex}, linkIndex) => ({link, linkIndex, channelIndex}))).flatMap(({link, channelIndex, linkIndex}) => link.map((l) => ({
+		return (parsed.rss.channel as {item: {link: string[]}[] | undefined}[]).flatMap((channel, channelIndex) => ((channel.item ?? []).map((c) => ({link: c.link, channelIndex}))).flatMap(({link, channelIndex}, linkIndex) => ({link, linkIndex, channelIndex}))).flatMap(({link, channelIndex, linkIndex}) => link.map((l) => ({
 			url: l,
 			role: {type: "document"},
 			asserts: [{type: "permanent"}],
 			location: {type: "rss", rssurl: url, channelIndex, linkIndex},
 		} as const)));
 	}else if (role.type === "atom") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-		return (parsed.feed.entry as {link: {$: {href: string}}[]}[]).flatMap((entry, entryIndex) => entry.link.flatMap((link, linkIndex) => ({href: link.$.href, entryIndex, linkIndex}))).map(({href, entryIndex, linkIndex}) => ({
+		return (parsed.feed.entry as {link: {$: {href: string}}[]}[] | undefined ?? []).flatMap((entry, entryIndex) => entry.link.flatMap((link, linkIndex) => ({href: link.$.href, entryIndex, linkIndex}))).map(({href, entryIndex, linkIndex}) => ({
 			url: href,
 			role: {type: "document"},
 			asserts: [{type: "permanent"}],
 			location: {type: "atom", atomurl: url, entryIndex, linkIndex},
 		} as const));
 	}else if (role.type === "json") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const asJson = JSON.parse(contents.toString("utf8"));
 		return role.extractConfigs.flatMap((extractConfig) => ((jmespath.search(asJson, extractConfig.jmespath) ?? []) as string[]).map((link, index) => ({
 			url: link,
@@ -81,7 +81,7 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 			location: {type: "json", jsonurl: url, jmespath: extractConfig.jmespath, index},
 		})));
 	}else if (role.type === "document" || contentType === "text/html") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl})
 		const linkAssets = [...dom.window.document.querySelectorAll("link[href]") as NodeListOf<HTMLLinkElement>].map((link) => {
 			const {asserts, role, location} = (() => {
@@ -114,7 +114,19 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 					return {role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}}} as const;
 				}
 			})();
-			return {url: link.href, role, asserts: [...(link.type ? [{type: "content-type", contentType: [link.type]}] as const : []), ...asserts], location};
+			const contentTypeAssertions = (() => {
+				if (link.type) {
+					// https://validator.w3.org/feed/docs/warning/UnexpectedContentType.html
+					if (link.type === "application/rss+xml" || link.type === "application/atom+xml") {
+						return [{type: "content-type", contentType: [link.type, "application/xml"]}] as const;
+					}else {
+						return [{type: "content-type", contentType: [link.type]}] as const;
+					}
+				}else {
+					return [];
+				}
+			})();
+			return {url: link.href, role, asserts: [...contentTypeAssertions, ...asserts], location};
 		});
 		const scriptAssets = [...dom.window.document.querySelectorAll("script[src]") as NodeListOf<HTMLScriptElement>].map((script) => {
 			return {url: script.src, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: getElementLocation(script)}}} as const;
@@ -140,7 +152,7 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 		});
 		return [...linkAssets, ...scriptAssets, ...ogImages, ...imgSrcAssets, ...imgSrcsetAssets, ...links, ...videoSrcAssets, ...videoPosterAssets];
 	}else if (contentType === "text/css") {
-		const contents = await fs.readFile(res.data);
+		const contents = await fs.readFile(res.data.path);
 		const allUrls = await extractAllUrlsFromCss(contents.toString("utf8"));
 		return allUrls.map(({url, parent, prop, position}) => {
 			const {asserts, role, location} = (() => {

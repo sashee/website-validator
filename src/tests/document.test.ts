@@ -25,11 +25,11 @@ describe("documents", () => {
 	</body>
 </html>
 				`
-			}])((dir) => validate({concurrency: 1})(dir, "https://example.com", "index.html")([{url: "/", role: {type: "document"}}], {}));
+			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
-				assert(errors.some((error) => error.type === "JSON_LD_UNPARSEABLE" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+				assert(errors.some((error) => error.type === "JSON_LD_UNPARSEABLE" && error.location.location.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 			});
 		});
 	})

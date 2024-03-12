@@ -37,9 +37,9 @@ https://example.com/${nextFailId()}.html
 				},
 			])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					(fetchBases, {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
 			})
 		});
@@ -99,9 +99,9 @@ https://example.com/${nextFailId()}.html
 				},
 			])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					(fetchBases, {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
 			})
 		});
@@ -125,9 +125,9 @@ https://example.com/${nextFailId()}.html
 				contents: JSON.stringify({urls: ["https://example.com/a.html"]}),
 			}])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					(fetchBases, {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
 			})
 		});
@@ -149,9 +149,9 @@ https://example.com/${nextFailId()}.html
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {});
 			})
 		});
@@ -173,9 +173,9 @@ https://example.com/${nextFailId()}.html
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {});
 			})
 		});
@@ -196,9 +196,9 @@ https://example.com/${nextFailId()}.html
 				contents: JSON.stringify({newUrls: [`https://example.com/a.html`]}),
 			}])((newDir) => {
 				return compareVersions({concurrency: 1})
-					(newDir, "https://example.com", "index.html")
+					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
-					(originalDir, "https://example.com", "index.html")
+					("https://example.com", {dir: originalDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}, {jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {});
 			})
 		});
@@ -271,9 +271,9 @@ https://example.com/${nextFailId()}.html
 					},
 				])((newDir) => {
 					return compareVersions({concurrency: 1})
-						(newDir, "https://example.com", "index.html")
+						("https://example.com", {dir: newDir})
 						(fetchBases, {})
-						(originalDir, "https://example.com", "index.html")
+						("https://example.com", {dir: originalDir})
 						(fetchBases, {});
 				})
 			});
@@ -352,9 +352,9 @@ https://example.com/${nextFailId()}.html
 					},
 				])((newDir) => {
 					return compareVersions({concurrency: 1})
-						(newDir, "https://example.com", "index.html")
+						("https://example.com", {dir: newDir})
 						(fetchBases, {})
-						(originalDir, "https://example.com", "index.html")
+						("https://example.com", {dir: originalDir})
 						(fetchBases, {});
 				})
 			});
