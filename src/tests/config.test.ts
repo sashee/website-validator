@@ -115,7 +115,7 @@ describe("config", () => {
 		<link href="/rss-${failId1}.xml" rel="alternate" type="application/rss+xml">
 		<link href="/atom.xml" rel="alternate" type="application/atom+xml">
 		<link href="/atom-xml.xml" rel="alternate" type="application/atom+xml">
-		<link href="/atom-${failId1}.xml" rel="alternate" type="application/atom+xml">
+		<link href="/atom-${failId2}.xml" rel="alternate" type="application/atom+xml">
 	</head>
 	<body>
 	</body>
@@ -154,10 +154,9 @@ describe("config", () => {
 				}
 			}})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
-			console.log(errors)
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
-				assert(errors.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && [failId1, failId2].some((failId) => error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId))), `Should have an error but did not: ${index}`);
+				assert(errors.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 			});
 		})
 	});
