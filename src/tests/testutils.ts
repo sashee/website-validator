@@ -27,3 +27,19 @@ export const initFailIds = () => {
 	}
 };
 
+export const baseHtmlContents = `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+	</body>
+</html>
+`
+
+export const baseIndexFile = {
+	filename: "index.html",
+	contents: baseHtmlContents,
+};
+

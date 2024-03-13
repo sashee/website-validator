@@ -153,8 +153,8 @@ type LinkError = {
 } | {
 	// content type not matching
 	type: "CONTENT_TYPE_MISMATCH",
-	//expectedContentTypes: string[],
-	//actualContentType: string,
+	expectedContentTypes: string[],
+	actualContentType: string,
 	location: {
 		url: string,
 		location: LinkLocation,
@@ -179,11 +179,33 @@ type DocumentErrors = {
 		url: string,
 		location: {outerHTML: string, selector: string},
 	}
+} | {
+	type: "MULTIPLE_IDS",
+	location: {
+		url: string,
+		id: string,
+		elements: {outerHTML: string, selector: string}[],
+	}
 }
 
-type ValidationResultType = LinkError
+export type ValidationResultType = DeepReadonly<LinkError
 | DocumentErrors
 | NotFoundError
+| {
+	type: "ROBOTS_TXT_HOST_INVALID",
+	expectedHost: string,
+	actualHost: string,
+}
+| {
+	type: "ROBOTS_TXT_SITEMAP_INVALID",
+	sitemapUrl: string,
+}
+| {
+	type: "SITEMAP_LINK_INVALID",
+	sitemapUrl: string,
+	url: string,
+}
+>
 
 type ExtraTypes = DeepReadonly<{extraTxtSitemaps?: string[] | undefined, extraXmlSitemaps?: string[] | undefined, extraUrls?: string[] | undefined}>;
 
@@ -354,18 +376,13 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 				throw new Error("whops; " + toCanonical(baseUrl, indexName)(link.url));
 			}
 			return pool!.checkLink({baseUrl, indexName, target, link});
-		}))).flat(1).map(({type, link}) => {
-			return {
-				type, 
-				location: {
-					url: link.url,
-					location: link.location,
-				}
-			}
-		});
+		}))).flat(1);
 		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles}]) => {
-			const allDocumentErrors = await pool!.validateFile({baseUrl, url, res: res as FoundPageFetchResult, roles});
-			return [...allDocumentErrors];
+			if (res.data !== null) {
+				return await pool!.validateFile({baseUrl, url, res: res as FoundPageFetchResult, roles});
+			}else {
+				return [];
+			}
 		}))).flat(2);
 		return [...allPageErrors, ...notFoundErrors, ...allLinksErrors];
 	});

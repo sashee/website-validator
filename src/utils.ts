@@ -107,5 +107,9 @@ export const extractAllUrlsFromCss = async (css: string) => {
 
 export const collectAllIdsFromPage = addFileCache(async (page: FoundPageFetchResult["data"]) => {
 	const dom = new JSDOM(await fs.readFile(page.path, "utf8"));
-	return [...dom.window.document.querySelectorAll("*[id]")].map((elem) => elem.id);
-}, {calcCacheKey: (page) => ["collectAllIdsFromPage_1", page.path, page.mtime]});
+	return [...dom.window.document.querySelectorAll("*[id]")].map((elem) => ({
+		outerHTML: elem.outerHTML,
+		id: elem.id,
+		selector: getElementLocation(elem),
+	}));
+}, {calcCacheKey: (page) => ["collectAllIdsFromPage_2", page.path, page.mtime]});
