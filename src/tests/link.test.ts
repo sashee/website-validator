@@ -193,7 +193,7 @@ describe("links", () => {
 <html lang="en-us">
 	<head>
 		<title>title</title>
-		<link rel="stylesheet", type="text/css", href="style.css">
+		<link rel="stylesheet" type="text/css" href="style.css">
 	</head>
 	<body>
 	</body>

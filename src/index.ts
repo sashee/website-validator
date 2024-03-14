@@ -70,6 +70,37 @@ type AssertDocument = {type: "document"};
 
 export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent | AssertDocument;
 
+export type VnuReportedError = {
+		type: "error",
+		subtype?: "fatal",
+		message: string,
+		extract: string,
+		firstLine?: number,
+		lastLine: number,
+		firstColumn: number,
+		lastColumn?: number,
+		hiliteStart?: number,
+		hiliteLength?: number,
+	} | {
+		type: "info",
+		subtype?: "warning",
+		message: string,
+		extract: string,
+		firstLine?: number,
+		lastLine: number,
+		firstColumn: number,
+		lastColumn?: number,
+		hiliteStart?: number,
+		hiliteLength?: number,
+	};
+
+export type VnuResult = {
+	messages: Array<{
+		type: "non-document-error"
+		message: string,
+	} | VnuReportedError>
+}
+
 export type LinkLocation = {
 	type: "html",
 	element: {
@@ -178,14 +209,13 @@ type DocumentErrors = {
 	location: {
 		url: string,
 		location: {outerHTML: string, selector: string},
-	}
+	},
 } | {
-	type: "MULTIPLE_IDS",
+	type: "VNU",
+	object: VnuReportedError,
 	location: {
 		url: string,
-		id: string,
-		elements: {outerHTML: string, selector: string}[],
-	}
+	},
 }
 
 export type ValidationResultType = DeepReadonly<LinkError

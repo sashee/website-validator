@@ -1,7 +1,7 @@
 import {DeepReadonly} from "ts-essentials";
 import {FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
 import {JSDOM} from "jsdom";
-import {collectAllIdsFromPage, getElementLocation} from "./utils.js";
+import {getElementLocation, vnuValidate} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
@@ -10,9 +10,20 @@ import path from "node:path";
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	const allDocumentErrors = await (async () => {
-		if ((contentType === "text/html" || roles.some(({type}) => type === "document"))) {
+		if ((contentType === "text/html")) {
 			const contents = await fs.readFile(res.data.path);
 			const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl});
+			const htmlErrors = await (async () => {
+				return (await vnuValidate(res.data, "html")).map((object) => {
+					return {
+						type: "VNU",
+						object,
+						location: {
+							url,
+						}
+					} as const;
+				});
+			})();
 			const jsonLdErrors = (() => {
 				const allJSONLDs = [...dom.window.document.querySelectorAll("script[type='application/ld+json']")];
 				return allJSONLDs.flatMap((jsonLd) => {
@@ -24,34 +35,33 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					}
 				});
 			})();
-			const documentErrors = await (async () => {
-				const allIds = await collectAllIdsFromPage(res.data);
-				const duplicateIds = allIds.filter(({id}, _i, l) => {
-					return l.filter((e) => e.id === id).length > 1;
-				});
-				const groups = duplicateIds.reduce((memo, elem) => {
-					if (memo[elem.id]) {
-						memo[elem.id].push(elem);
-						return memo;
-					}else {
-						return {
-							...memo,
-							[elem.id]: [elem],
-						};
-					}
-				}, {} as {[id: string]: typeof duplicateIds});
-				return Object.entries(groups).flatMap(([id, elems]) => {
-					return [{
-						type: "MULTIPLE_IDS",
+			return [...htmlErrors, ...jsonLdErrors];
+		}else if ((contentType === "text/css")) {
+			const cssErrors = await (async () => {
+				return (await vnuValidate(res.data, "css")).map((object) => {
+					return {
+						type: "VNU",
+						object,
 						location: {
 							url,
-							id,
-							elements: elems.map(({outerHTML, selector}) => ({outerHTML, selector})),
 						}
-					}] as const;
-				})
+					} as const;
+				});
 			})();
-			return [...jsonLdErrors, ...documentErrors];
+			return [...cssErrors];
+		}else if ((contentType === "image/svg+xml")) {
+			const svgErrors = await (async () => {
+				return (await vnuValidate(res.data, "svg")).map((object) => {
+					return {
+						type: "VNU",
+						object,
+						location: {
+							url,
+						}
+					} as const;
+				});
+			})();
+			return [...svgErrors];
 		}else if (roles.some(({type}) => type === "robotstxt")) {
 			const contents = await fs.readFile(res.data.path);
 			const robots = robotsParser(url, contents.toString("utf8"));

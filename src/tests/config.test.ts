@@ -50,8 +50,8 @@ describe("config", () => {
 <html lang="en-us">
 	<head>
 		<title>title</title>
-		<link href="a.html" type="text/css">
-		<link href="${failId}.html" type="text/css">
+		<link href="a.html" type="text/css" rel="stylesheet">
+		<link href="${failId}.html" type="text/css" rel="stylesheet">
 	</head>
 	<body>
 	</body>
@@ -66,9 +66,10 @@ describe("config", () => {
 				}
 			])((dir) => validate({concurrency: 1})("https://example.com", {dir, contentTypes: (path) => path.includes("a.html") ? "text/css" : "text/html"})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
-			assert.equal(errors.length, failIds.length);
+			const errorsWithoutVnu = errors.filter(({type}) => type !== "VNU");
+			assert.equal(errorsWithoutVnu.length, failIds.length, JSON.stringify(errorsWithoutVnu, undefined, 4));
 			failIds.forEach((failId, index) => {
-				assert(errors.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+				assert(errorsWithoutVnu.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 			});
 		});
 		it("rss and atom can have application/xml content types", async () => {
@@ -154,9 +155,10 @@ describe("config", () => {
 				}
 			}})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
-			assert.equal(errors.length, failIds.length);
+			const errorsWithoutVnu = errors.filter(({type}) => type !== "VNU");
+			assert.equal(errorsWithoutVnu.length, failIds.length);
 			failIds.forEach((failId, index) => {
-				assert(errors.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+				assert(errorsWithoutVnu.some((error) => error.type === "CONTENT_TYPE_MISMATCH" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 			});
 		})
 	});

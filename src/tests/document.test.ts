@@ -73,10 +73,8 @@ describe("documents", () => {
 				}
 			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
-			assert.equal(errors.length, failIds.length);
-			failIds.forEach((failId, index) => {
-				assert(errors.some((error) => error.type === "MULTIPLE_IDS" && error.location.url.includes(failId === failId1 ? "index.html" : "a.html") && error.location.elements.some((e) => e.outerHTML.includes(failId)) && error.location.elements.some((e) => e.outerHTML.includes(failId + "_2"))), `Should have an error but did not: ${index}`);
-			});
+			const vnuErrors = errors.filter((error) => error.type === "VNU" && error.object.type === "error");
+			assert.equal(vnuErrors.length, failIds.length);
 		});
 	})
 });

@@ -6,16 +6,27 @@ import { strict as assert } from "node:assert";
 import {withFileCache} from "with-file-cache";
 import crypto from  "node:crypto";
 import {JSDOM} from "jsdom";
-import { FoundPageFetchResult } from ".";
+import { FoundPageFetchResult, VnuReportedError, VnuResult } from ".";
+import {execFile} from "node:child_process";
+import util from "node:util";
+import vnu from "vnu-jar";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
 export const addFileCache = withFileCache(
 	{baseKey: async () => {
-		const files = [
-			"package-lock.json",
-		];
-		return (await Promise.all(files.map((file) => fs.readFile(file)))).map((contents) => sha(contents)).join(";");
+		return (await Promise.all([
+			(async () => {
+				const files = [
+					"package-lock.json",
+				];
+				return (await Promise.all(files.map((file) => fs.readFile(file).then((contents) => sha(contents))))).join(";");
+			})(),
+			(async () => {
+				const javaVersion = (await util.promisify(execFile)("java", ["--version"])).stdout;
+				return sha(javaVersion);
+			})(),
+		])).reduce((memo, val) => sha(memo + ";" + val), "");
 	}},
 );
 
@@ -113,3 +124,13 @@ export const collectAllIdsFromPage = addFileCache(async (page: FoundPageFetchRes
 		selector: getElementLocation(elem),
 	}));
 }, {calcCacheKey: (page) => ["collectAllIdsFromPage_2", page.path, page.mtime]});
+
+export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"], type: "html" | "css" | "svg") => {
+	const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", data.path]);
+	const out = JSON.parse(stdout) as VnuResult;
+	if (out.messages.some(({type}) => type === "non-document-error")) {
+		throw new Error(JSON.stringify(out.messages, undefined, 4));
+	}
+	return out.messages as VnuReportedError[];
+}, {calcCacheKey: (data, type) => ["vnuValidate_1", data.path, data.mtime, type]});
+
