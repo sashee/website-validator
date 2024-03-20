@@ -70,6 +70,10 @@ type AssertDocument = {type: "document"};
 
 export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent | AssertDocument;
 
+export type PdfCheckError = {
+	message: string,
+};
+
 export type EpubcheckError = {
 	ID: string,
 	severity: string,
@@ -230,6 +234,12 @@ type DocumentErrors = {
 } | {
 	type: "EPUBCHECK",
 	object: EpubcheckError,
+	location: {
+		url: string,
+	},
+} | {
+	type: "PDFCHECK",
+	object: PdfCheckError,
 	location: {
 		url: string,
 	},

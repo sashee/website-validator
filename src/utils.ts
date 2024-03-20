@@ -11,6 +11,7 @@ import {execFile} from "node:child_process";
 import util from "node:util";
 import vnu from "vnu-jar";
 import epubchecker from "epubchecker";
+import muhammara from "muhammara";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -138,3 +139,15 @@ export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"
 export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data"]) => {
 	return (await epubchecker(data.path)).messages as EpubcheckError[];
 }, {calcCacheKey: (data) => ["epubcheck_validate_1", data.path, data.mtime]});
+
+export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"]) => {
+	const pdf = await fs.readFile(data.path);
+	try {
+		const pdfReader = muhammara.createReader(new muhammara.PDFRStreamForBuffer(pdf));
+		pdfReader.parsePage(0);
+		pdfReader.getPagesCount();
+	}catch(e: any) {
+		return [e.message];
+	}
+	return [];
+}, {calcCacheKey: (data) => ["validatepdf_1", new Date().getTime(), data.path, data.mtime]});

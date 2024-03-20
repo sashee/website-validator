@@ -1,7 +1,7 @@
 import {DeepReadonly} from "ts-essentials";
-import {EpubcheckError, FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
+import {FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
 import {JSDOM} from "jsdom";
-import {getElementLocation, validateEpub, vnuValidate} from "./utils.js";
+import {getElementLocation, validateEpub, validatePdf, vnuValidate} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
@@ -40,6 +40,15 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 			const results = await validateEpub(res.data);
 			return results.map((msg) => ({
 				type: "EPUBCHECK",
+				location: {url},
+				object: msg,
+			}) as const);
+		}else if (contentType === "application/pdf") {
+			console.log("VALIDATE PDF");
+			const results = await validatePdf(res.data);
+			console.log(JSON.stringify(results, undefined, 4));
+			return results.map((msg) => ({
+				type: "PDFCHECK",
 				location: {url},
 				object: msg,
 			}) as const);
