@@ -70,29 +70,40 @@ type AssertDocument = {type: "document"};
 
 export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent | AssertDocument;
 
+export type EpubcheckError = {
+	ID: string,
+	severity: string,
+	message: string,
+	locations: Array<{
+		path: string,
+		line: number,
+		column: number,
+	}>,
+};
+
 export type VnuReportedError = {
-		type: "error",
-		subtype?: "fatal",
-		message: string,
-		extract: string,
-		firstLine?: number,
-		lastLine: number,
-		firstColumn: number,
-		lastColumn?: number,
-		hiliteStart?: number,
-		hiliteLength?: number,
-	} | {
-		type: "info",
-		subtype?: "warning",
-		message: string,
-		extract: string,
-		firstLine?: number,
-		lastLine: number,
-		firstColumn: number,
-		lastColumn?: number,
-		hiliteStart?: number,
-		hiliteLength?: number,
-	};
+	type: "error",
+	subtype?: "fatal",
+	message: string,
+	extract: string,
+	firstLine?: number,
+	lastLine: number,
+	firstColumn: number,
+	lastColumn?: number,
+	hiliteStart?: number,
+	hiliteLength?: number,
+} | {
+	type: "info",
+	subtype?: "warning",
+	message: string,
+	extract: string,
+	firstLine?: number,
+	lastLine: number,
+	firstColumn: number,
+	lastColumn?: number,
+	hiliteStart?: number,
+	hiliteLength?: number,
+};
 
 export type VnuResult = {
 	messages: Array<{
@@ -213,6 +224,12 @@ type DocumentErrors = {
 } | {
 	type: "VNU",
 	object: VnuReportedError,
+	location: {
+		url: string,
+	},
+} | {
+	type: "EPUBCHECK",
+	object: EpubcheckError,
 	location: {
 		url: string,
 	},

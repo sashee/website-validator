@@ -6,10 +6,11 @@ import { strict as assert } from "node:assert";
 import {withFileCache} from "with-file-cache";
 import crypto from  "node:crypto";
 import {JSDOM} from "jsdom";
-import { FoundPageFetchResult, VnuReportedError, VnuResult } from ".";
+import { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } from ".";
 import {execFile} from "node:child_process";
 import util from "node:util";
 import vnu from "vnu-jar";
+import epubchecker from "epubchecker";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -134,3 +135,6 @@ export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"
 	return out.messages as VnuReportedError[];
 }, {calcCacheKey: (data, type) => ["vnuValidate_1", data.path, data.mtime, type]});
 
+export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data"]) => {
+	return (await epubchecker(data.path)).messages as EpubcheckError[];
+}, {calcCacheKey: (data) => ["epubcheck_validate_1", data.path, data.mtime]});

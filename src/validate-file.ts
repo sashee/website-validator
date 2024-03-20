@@ -1,7 +1,7 @@
 import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
+import {EpubcheckError, FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
 import {JSDOM} from "jsdom";
-import {getElementLocation, vnuValidate} from "./utils.js";
+import {getElementLocation, validateEpub, vnuValidate} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
@@ -10,7 +10,7 @@ import path from "node:path";
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
 	const allDocumentErrors = await (async () => {
-		if ((contentType === "text/html")) {
+		if (contentType === "text/html") {
 			const contents = await fs.readFile(res.data.path);
 			const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl});
 			const htmlErrors = await (async () => {
@@ -36,7 +36,14 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 				});
 			})();
 			return [...htmlErrors, ...jsonLdErrors];
-		}else if ((contentType === "text/css")) {
+		}else if (contentType === "application/epub+zip") {
+			const results = await validateEpub(res.data);
+			return results.map((msg) => ({
+				type: "EPUBCHECK",
+				location: {url},
+				object: msg,
+			}) as const);
+		}else if (contentType === "text/css") {
 			const cssErrors = await (async () => {
 				return (await vnuValidate(res.data, "css")).map((object) => {
 					return {
@@ -49,7 +56,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 				});
 			})();
 			return [...cssErrors];
-		}else if ((contentType === "image/svg+xml")) {
+		}else if (contentType === "image/svg+xml") {
 			const svgErrors = await (async () => {
 				return (await vnuValidate(res.data, "svg")).map((object) => {
 					return {
