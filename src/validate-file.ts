@@ -44,9 +44,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 				object: msg,
 			}) as const);
 		}else if (contentType === "application/pdf") {
-			console.log("VALIDATE PDF");
 			const results = await validatePdf(res.data);
-			console.log(JSON.stringify(results, undefined, 4));
 			return results.map((msg) => ({
 				type: "PDFCHECK",
 				location: {url},
