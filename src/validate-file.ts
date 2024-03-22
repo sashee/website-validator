@@ -9,7 +9,7 @@ import path from "node:path";
 import xml2js from "xml2js";
 
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
-	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
+	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")![1];
 	const allDocumentErrors = await (async () => {
 		if (contentType === "text/html") {
 			const contents = await fs.readFile(res.data.path);

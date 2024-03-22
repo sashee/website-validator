@@ -65,7 +65,7 @@ describe("config", () => {
 					filename: `${failId}.html`,
 					contents: "body {background-color: blue;}",
 				}
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, contentTypes: (path) => path.includes("a.html") ? "text/css" : "text/html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, responseMeta: (path) => ({headers: {"Content-Type":path.includes("a.html") ? "text/css" : "text/html"}, status: 200})})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
 			const errorsWithoutVnu = errors.filter(({type}) => type !== "VNU");
 			assert.equal(errorsWithoutVnu.length, failIds.length, JSON.stringify(errorsWithoutVnu, undefined, 4));
@@ -142,17 +142,25 @@ describe("config", () => {
 					filename: `atom-${failId2}.xml`,
 					contents: atomContents,
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, contentTypes: (path) => {
-				if (path.includes("rss.xml")) {
-					return "application/rss+xml";
-				}else if (path.includes("atom.xml")) {
-					return "application/atom+xml";
-				}else if (path.includes("rss-xml.xml") || path.includes("atom-xml.xml")) {
-					return "application/xml";
-				}else if (path.includes(failId1) || path.includes(failId2)) {
-					return "text/html";
-				}else {
-					return "text/html";
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, responseMeta: (path) => {
+				const contentType = (() => {
+					if (path.includes("rss.xml")) {
+						return "application/rss+xml";
+					}else if (path.includes("atom.xml")) {
+						return "application/atom+xml";
+					}else if (path.includes("rss-xml.xml") || path.includes("atom-xml.xml")) {
+						return "application/xml";
+					}else if (path.includes(failId1) || path.includes(failId2)) {
+						return "text/html";
+					}else {
+						return "text/html";
+					}
+				})();
+				return {
+					headers: {
+						"Content-Type": contentType,
+					},
+					status: 200,
 				}
 			}})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();

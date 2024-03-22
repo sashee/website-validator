@@ -14,7 +14,8 @@ import debug from "debug";
 export const log = debug("website-validator");
 
 export type FileFetchResult = {
-	headers: [string, string][],
+	headers: {[name: string]: string},
+	status: number,
 	data: {
 		path: string,
 		mtime: number,
@@ -24,6 +25,7 @@ export type FileFetchResult = {
 export type FoundPageFetchResult = {
 	headers: FileFetchResult["headers"],
 	data: NonNullable<FileFetchResult["data"]>,
+	status: FileFetchResult["status"],
 }
 
 export const toCanonical = (baseUrl: string, indexName: string) => (url: string) => {
@@ -275,13 +277,18 @@ export type ValidationResultType = DeepReadonly<LinkError
 
 type ExtraTypes = DeepReadonly<{extraTxtSitemaps?: string[] | undefined, extraXmlSitemaps?: string[] | undefined, extraUrls?: string[] | undefined}>;
 
-const defaultContentTypes: NonNullable<TargetConfig["contentTypes"]> = (filePath) => {
-	return mime.getType(path.extname(filePath)) ?? "application/octet-stream";
+const defaultResponseMeta: NonNullable<TargetConfig["responseMeta"]> = (filePath) => {
+	return {
+		headers: {
+			"Content-Type": mime.getType(path.extname(filePath)) ?? "application/octet-stream",
+		},
+		status: 200,
+	}
 };
 
 const fetchSingleFile = (baseUrl: string, targetConfig: TargetConfig) => (url: string) => {
 	const indexName = targetConfig.indexName ?? "index.html";
-	const contentTypes = targetConfig.contentTypes ?? defaultContentTypes;
+	const responseMeta = targetConfig.responseMeta ?? defaultResponseMeta;
 	const fetchFile = (() => {
 		return async (url: string): Promise<DeepReadonly<FileFetchResult>> => {
 			if (!isInternalLink(url)) {
@@ -292,15 +299,14 @@ const fetchSingleFile = (baseUrl: string, targetConfig: TargetConfig) => (url: s
 			try {
 				const stat = await fs.stat(filePath);
 				return {
-					headers: [
-						["content-type", contentTypes(fileUrl)],
-					],
+					...responseMeta(fileUrl),
 					data: {path: filePath, mtime: stat.mtimeMs},
 				}
 			}catch(e: any) {
 				if (e.code === "ENOENT") {
 					return {
-						headers: [],
+						headers: {},
+						status: 404,
 						data: null,
 					};
 				}else {
@@ -314,7 +320,7 @@ const fetchSingleFile = (baseUrl: string, targetConfig: TargetConfig) => (url: s
 
 export const fetchFileGraph = (pool: Pool) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes) => {
 	const indexName = targetConfig.indexName ?? "index.html";
-	const contentTypes = targetConfig.contentTypes ?? defaultContentTypes;
+	const responseMeta = targetConfig.responseMeta ?? defaultResponseMeta;
 	const fetchFile = (() => {
 		return async (url: string): Promise<DeepReadonly<FileFetchResult>> => {
 			if (!isInternalLink(url)) {
@@ -325,15 +331,14 @@ export const fetchFileGraph = (pool: Pool) => (baseUrl: string, targetConfig: Ta
 			try {
 				const stat = await fs.stat(filePath);
 				return {
-					headers: [
-						["content-type", contentTypes(fileUrl)],
-					],
+					...responseMeta(fileUrl),
 					data: {path: filePath, mtime: stat.mtimeMs},
 				}
 			}catch(e: any) {
 				if (e.code === "ENOENT") {
 					return {
-						headers: [],
+						headers: {},
+						status: 404,
 						data: null,
 					};
 				}else {
@@ -381,7 +386,7 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 	];
 }
 
-type TargetConfig = {dir: string, indexName?: string, contentTypes?: (path: string) => string};
+type TargetConfig = {dir: string, indexName?: string, responseMeta?: (path: string) => {headers: {[name: string]: string}, status: number}};
 
 export const validate = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes): Promise<Array<ValidationResultType>> => {
 	assert((extras.extraUrls ?? []).every((url) => isInternalLink(baseUrl)(url)), "extraUrls must be internal links");

@@ -6,7 +6,7 @@ import { collectAllIdsFromPage } from "./utils.js";
 export const checkLink = (baseUrl: string, indexName: string) => async (link: {url: string, asserts: readonly Assertion[], location: LinkLocation}, target: DeepReadonly<FileFetchResult>): Promise<ValidationResultType[]> => {
 	const canonical = toCanonical(baseUrl, indexName)(link.url);
 	if (isInternalLink(baseUrl)(link.url)) {
-		const getContentType = (res: DeepReadonly<FileFetchResult>) => res.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+		const getContentType = (res: DeepReadonly<FileFetchResult>) => Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 		const contentType = getContentType(target);
 		if (target.data === null) {
 			return [{
@@ -53,7 +53,7 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 			})();
 			const assertErrors = link.asserts.flatMap((assert): ValidationResultType[] => {
 				if (assert.type === "content-type") {
-					const contentType = target.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+					const contentType = Object.entries(target.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 					if (!contentType || !assert.contentType.includes(contentType)) {
 						return [{
 							type: "CONTENT_TYPE_MISMATCH",
@@ -68,7 +68,7 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 						return [];
 					}
 				}else if (assert.type === "document") {
-					const contentType = target.headers.find(([name]) => name.toLowerCase() === "content-type")?.[1];
+					const contentType = Object.entries(target.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 					if (contentType !== "text/html") {
 						return [{
 							type: "LINK_POINTS_TO_NON_DOCUMENT",
