@@ -438,7 +438,7 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			}
 		});
 
-		log("fetchedFiles: %O, allLinks: %O, files: %O", fetchedFiles, allLinks, files);
+		log("fetchedFiles: %s, allLinks: %s, files: %s", JSON.stringify(fetchedFiles, undefined, 4), JSON.stringify(allLinks, undefined, 4), JSON.stringify(files, undefined, 4));
 		const allLinksErrors = (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
 			const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
 			if (!target) {
@@ -582,8 +582,8 @@ export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: s
 											}
 										})
 									}));
-									return changedAtomGuids.flat();
 
+									return changedAtomGuids.flat();
 								})(),
 							]);
 							return [...changedRssItems, ...changedAtomItems];
