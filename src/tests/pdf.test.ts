@@ -65,8 +65,7 @@ describe("pdf", () => {
 				contents: pdf,
 			}
 		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
-		console.log(JSON.stringify(errors, undefined, 4));
 		assert.equal(errors.length, 1);
-		assert(errors[0].type === "PDFCHECK" && errors[0].location.url.includes("test.pdf"), `Should have an error but did not`);
+		assert(errors[0].type === "PDF_CAN_NOT_BE_PARSED" && errors[0].location.url.includes("test.pdf"), `Should have an error but did not`);
 	});
 });

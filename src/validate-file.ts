@@ -46,9 +46,9 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 		}else if (contentType === "application/pdf") {
 			const results = await validatePdf(res.data);
 			return results.map((msg) => ({
-				type: "PDFCHECK",
+				type: "PDF_CAN_NOT_BE_PARSED",
 				location: {url},
-				object: msg,
+				message: msg,
 			}) as const);
 		}else if (contentType === "text/css") {
 			const cssErrors = await (async () => {

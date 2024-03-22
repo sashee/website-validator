@@ -1,4 +1,4 @@
-import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult} from "./index.js";
+import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log} from "./index.js";
 import {parseSrcset} from "srcset";
 import robotsParser from "robots-parser";
 import xml2js from "xml2js";
@@ -86,6 +86,7 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 		const linkAssets = [...dom.window.document.querySelectorAll("link[href]") as NodeListOf<HTMLLinkElement>].map((link) => {
 			const {asserts, role, location} = (() => {
 				if(link.rel === "stylesheet") {
+					log("link is a stylesheet: url: %s, link: %O, res: %O", url, link, res);
 					return {
 						role: {type: "stylesheet"},
 						asserts: [],

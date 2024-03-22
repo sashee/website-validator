@@ -9,6 +9,9 @@ import {recursiveFetchFiles} from "./fetch-files.js";
 import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
+import debug from "debug";
+
+export const log = debug("website-validator");
 
 export type FileFetchResult = {
 	headers: [string, string][],
@@ -69,10 +72,6 @@ type AssertPermanent = {type: "permanent"};
 type AssertDocument = {type: "document"};
 
 export type Assertion = AssertImage | AssertVideo | AssertFont | AssertImageSize | AssertContentType | AssertPermanent | AssertDocument;
-
-export type PdfCheckError = {
-	message: string,
-};
 
 export type EpubcheckError = {
 	ID: string,
@@ -238,8 +237,8 @@ type DocumentErrors = {
 		url: string,
 	},
 } | {
-	type: "PDFCHECK",
-	object: PdfCheckError,
+	type: "PDF_CAN_NOT_BE_PARSED",
+	message: string,
 	location: {
 		url: string,
 	},
@@ -424,9 +423,7 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			}
 		});
 
-		//console.log("fetchedFiles", JSON.stringify(fetchedFiles, undefined, 4))
-		//console.log("allLinks", JSON.stringify(allLinks, undefined, 4))
-		//console.log("files", JSON.stringify(files, undefined, 4))
+		log("fetchedFiles: %O, allLinks: %O, files: %O", fetchedFiles, allLinks, files);
 		const allLinksErrors = (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
 			const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
 			if (!target) {
