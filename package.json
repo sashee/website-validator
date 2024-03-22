@@ -14,7 +14,7 @@
   "repository": "github:sashee/website-validator",
   "scripts": {
     "test": "DEBUG_DEPTH=100 npm run build && node --test dist/**/*.test.js",
-    "test_dev": "TS_NODE_TRANSPILE_ONLY=true node --watch --test --test-reporter='./src/tests/test-reporter.ts' --loader ts-node/esm --test-name-pattern=$npm_config_tests src/**/*.test.ts",
+    "test_dev": "TS_NODE_TRANSPILE_ONLY=true node --test --loader ts-node/esm --test-only src/**/*.test.ts",
     "build": "tsc --build && npm run copy_static_files",
     "clean": "tsc --build --clean",
     "prepare": "npm run clean && npm run build",
