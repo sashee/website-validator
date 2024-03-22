@@ -65,7 +65,7 @@ describe("config", () => {
 					filename: `${failId}.html`,
 					contents: "body {background-color: blue;}",
 				}
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, responseMeta: (path) => ({headers: {"Content-Type":path.includes("a.html") ? "text/css" : "text/html"}, status: 200})})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, responseMeta: (path) => ({headers: {"Content-Type": path.includes("a.html") ? "text/css" : "text/html"}, status: 200})})([{url: "/", role: {type: "document"}}], {}));
 			const failIds = getFailIds();
 			const errorsWithoutVnu = errors.filter(({type}) => type !== "VNU");
 			assert.equal(errorsWithoutVnu.length, failIds.length, JSON.stringify(errorsWithoutVnu, undefined, 4));
