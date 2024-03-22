@@ -242,6 +242,16 @@ type DocumentErrors = {
 	location: {
 		url: string,
 	},
+} | {
+	type: "JSON_FILE_UNPARSEABLE",
+	location: {
+		url: string,
+	},
+} | {
+	type: "XML_FILE_UNPARSEABLE",
+	location: {
+		url: string,
+	},
 }
 
 export type ValidationResultType = DeepReadonly<LinkError

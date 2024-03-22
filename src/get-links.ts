@@ -86,7 +86,7 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 		const linkAssets = [...dom.window.document.querySelectorAll("link[href]") as NodeListOf<HTMLLinkElement>].map((link) => {
 			const {asserts, role, location} = (() => {
 				if(link.rel === "stylesheet") {
-					log("link is a stylesheet: url: %s, link: %O, res: %O", url, link, res);
+					log("link is a stylesheet: url: %s, link: %O, res: %O", url, link.outerHTML, res);
 					return {
 						role: {type: "stylesheet"},
 						asserts: [],
@@ -127,7 +127,9 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 					return [];
 				}
 			})();
-			return {url: link.href, role, asserts: [...contentTypeAssertions, ...asserts], location};
+			const result = {url: link.href, role, asserts: [...contentTypeAssertions, ...asserts], location};
+			log("link result: url: %s, result: %O", url, result);
+			return result;
 		});
 		const scriptAssets = [...dom.window.document.querySelectorAll("script[src]") as NodeListOf<HTMLScriptElement>].map((script) => {
 			return {url: script.src, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: getElementLocation(script)}}} as const;

@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
 import path from "node:path";
+import xml2js from "xml2js";
 
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
 	const contentType = res.headers.find(([name]) => name.toLowerCase() === "content-type")![1];
@@ -50,6 +51,17 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 				location: {url},
 				message: msg,
 			}) as const);
+		}else if (contentType === "application/json" || (contentType.startsWith("application/") && contentType.endsWith("+json"))) {
+			const contents = await fs.readFile(res.data.path);
+			try {
+				JSON.parse(contents.toString("utf8"));
+				return [];
+			}catch(e) {
+				return [{
+					type: "JSON_FILE_UNPARSEABLE",
+					location: {url},
+				}] as const;
+			}
 		}else if (contentType === "text/css") {
 			const cssErrors = await (async () => {
 				return (await vnuValidate(res.data, "css")).map((object) => {
@@ -121,6 +133,17 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					return [];
 				}
 			})
+		}else if (contentType === "application/xml" || (contentType.endsWith("+xml"))) {
+			const contents = await fs.readFile(res.data.path);
+			try {
+				await xml2js.parseStringPromise(contents);
+				return [];
+			}catch(e) {
+				return [{
+					type: "XML_FILE_UNPARSEABLE",
+					location: {url},
+				}] as const;
+			}
 		}else {
 			return [];
 		}
