@@ -430,6 +430,6 @@ body {
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 		});
-	})
+	});
 });
 

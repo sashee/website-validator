@@ -9,7 +9,7 @@ import path from "node:path";
 import xml2js from "xml2js";
 
 export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
-	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")![1];
+	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 	const allDocumentErrors = await (async () => {
 		if (contentType === "text/html") {
 			const contents = await fs.readFile(res.data.path);
@@ -51,7 +51,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 				location: {url},
 				message: msg,
 			}) as const);
-		}else if (contentType === "application/json" || (contentType.startsWith("application/") && contentType.endsWith("+json"))) {
+		}else if (contentType === "application/json" || (contentType !== undefined && contentType.startsWith("application/") && contentType.endsWith("+json"))) {
 			const contents = await fs.readFile(res.data.path);
 			try {
 				JSON.parse(contents.toString("utf8"));
@@ -133,7 +133,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					return [];
 				}
 			})
-		}else if (contentType === "application/xml" || (contentType.endsWith("+xml"))) {
+		}else if (contentType === "application/xml" || (contentType !== undefined && contentType.endsWith("+xml"))) {
 			const contents = await fs.readFile(res.data.path);
 			try {
 				await xml2js.parseStringPromise(contents);

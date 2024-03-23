@@ -10,6 +10,7 @@ import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import debug from "debug";
+import { findAllMetaTags } from "./utils.js";
 
 export const log = debug("website-validator");
 
@@ -26,6 +27,29 @@ export type FoundPageFetchResult = {
 	headers: FileFetchResult["headers"],
 	data: NonNullable<FileFetchResult["data"]>,
 	status: FileFetchResult["status"],
+}
+
+export const getRedirect = async (res: FoundPageFetchResult) => {
+	if ([301, 302, 307, 308].includes(res.status)) {
+		return Object.entries(res.headers).find(([name]) => name.toLowerCase() === "location")?.[1];
+	}else {
+		const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+		if (contentType === "text/html") {
+			const allMetaTags = await findAllMetaTags(res.data);
+			const contentRegex = /^\d+(; url=(?<url>.*))?$/;
+			const redirectMetas = allMetaTags.filter((meta) => meta["http-equiv"] === "refresh" && meta["content"]?.match(contentRegex)?.groups?.["url"] !== undefined);
+			if (redirectMetas.length > 1) {
+				throw new Error("More than one redirect metas are not supported...");
+			}else if (redirectMetas.length === 1) {
+				const url = redirectMetas[0]["content"]!.match(contentRegex)!.groups!["url"]!;
+				return url;
+			}else {
+				return undefined;
+			}
+		}else {
+			return undefined;
+		}
+	}
 }
 
 export const toCanonical = (baseUrl: string, indexName: string) => (url: string) => {
@@ -165,6 +189,8 @@ export type LinkLocation = {
 } | {
 	type: "extraurl",
 	index: number,
+} | {
+	type: "redirect",
 }
 
 export type LinkErrorTypes = LinkError["type"];
@@ -206,7 +232,14 @@ type LinkError = {
 		url: string,
 		location: LinkLocation,
 	}
-
+} | {
+	// redirect points to another redirect
+	type: "REDIRECT_CHAIN",
+	targetUrl: string,
+	location: {
+		url: string,
+		location: LinkLocation,
+	}
 }
 
 type NotFoundError = {

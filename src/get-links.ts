@@ -1,4 +1,4 @@
-import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log} from "./index.js";
+import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect} from "./index.js";
 import {parseSrcset} from "srcset";
 import robotsParser from "robots-parser";
 import xml2js from "xml2js";
@@ -32,8 +32,11 @@ export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") 
 }
 
 export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
-	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")![1];
-	if (role.type === "robotstxt") {
+	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+	const redirect = await getRedirect(res);
+	if (redirect !== undefined) {
+		return [{url: redirect, role, asserts: [], location: {type: "redirect"}}];
+	}else if (role.type === "robotstxt") {
 		const contents = await fs.readFile(res.data.path);
 		const robots = robotsParser(url, contents.toString("utf8"));
 		const sitemaps = robots.getSitemaps();

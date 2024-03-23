@@ -1,13 +1,10 @@
 import { strict as assert } from "node:assert";
 import {DeepReadonly} from "ts-essentials";
-import { Assertion, LinkLocation, toCanonical, LinkErrorTypes, fetchFileGraph, FileFetchResult, isInternalLink, ValidationResultType } from "./index.js";
+import { Assertion, LinkLocation, toCanonical, LinkErrorTypes, fetchFileGraph, FileFetchResult, isInternalLink, ValidationResultType, getRedirect, FoundPageFetchResult } from "./index.js";
 import { collectAllIdsFromPage } from "./utils.js";
 
 export const checkLink = (baseUrl: string, indexName: string) => async (link: {url: string, asserts: readonly Assertion[], location: LinkLocation}, target: DeepReadonly<FileFetchResult>): Promise<ValidationResultType[]> => {
-	const canonical = toCanonical(baseUrl, indexName)(link.url);
 	if (isInternalLink(baseUrl)(link.url)) {
-		const getContentType = (res: DeepReadonly<FileFetchResult>) => Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
-		const contentType = getContentType(target);
 		if (target.data === null) {
 			return [{
 				type: "TARGET_NOT_FOUND",
@@ -17,6 +14,19 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 				}
 			}];
 		}else {
+			const contentType = Object.entries(target.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+			const redirectErrors = await(async () => {
+				const redirect = await getRedirect(target as FoundPageFetchResult);
+				if (link.location.type === "redirect" && redirect !== undefined) {
+					return [{
+						type: "REDIRECT_CHAIN",
+						targetUrl: redirect,
+						location: link,
+					}] as const;
+				}else {
+					return [];
+				}
+			})();
 			const targetErrors = await (async () => {
 				if (contentType === "text/html") {
 					const hash = new URL(link.url, baseUrl).hash;
@@ -85,7 +95,7 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 					return [];
 				}
 			});
-			return [...targetErrors, ...assertErrors];
+			return [...targetErrors, ...assertErrors, ...redirectErrors];
 		}
 	}else {
 		return [];
