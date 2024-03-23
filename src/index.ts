@@ -10,7 +10,7 @@ import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import debug from "debug";
-import { findAllMetaTags } from "./utils.js";
+import { findAllTagsInHTML } from "./utils.js";
 
 export const log = debug("website-validator");
 
@@ -35,13 +35,13 @@ export const getRedirect = async (res: FoundPageFetchResult) => {
 	}else {
 		const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 		if (contentType === "text/html") {
-			const allMetaTags = await findAllMetaTags(res.data);
+			const allMetaTags = await findAllTagsInHTML("meta", res.data);
 			const contentRegex = /^\d+(; url=(?<url>.*))?$/;
-			const redirectMetas = allMetaTags.filter((meta) => meta["http-equiv"] === "refresh" && meta["content"]?.match(contentRegex)?.groups?.["url"] !== undefined);
+			const redirectMetas = allMetaTags.filter((meta) => meta.attrs["http-equiv"] === "refresh" && meta.attrs["content"]?.match(contentRegex)?.groups?.["url"] !== undefined);
 			if (redirectMetas.length > 1) {
 				throw new Error("More than one redirect metas are not supported...");
 			}else if (redirectMetas.length === 1) {
-				const url = redirectMetas[0]["content"]!.match(contentRegex)!.groups!["url"]!;
+				const url = redirectMetas[0].attrs["content"]!.match(contentRegex)!.groups!["url"]!;
 				return url;
 			}else {
 				return undefined;
@@ -287,6 +287,25 @@ type DocumentErrors = {
 	location: {
 		url: string,
 	},
+} | {
+	// multiple canonical links are in the page
+	type: "MULTIPLE_CANONICAL_LINKS",
+	canonicalLinks: Array<{
+		outerHTML: string,
+		selector: string,
+	}>
+} | {
+	// a page that is not a redirect has a canonical not pointing to itself
+	type: "NON_REDIRECT_DIFFERENT_CANONICAL",
+	canonicalLink: string,
+	location: {
+		url: string,
+	},
+} | {
+	// a redirect's canonical link is different than its target
+	type: "REDIRECT_DIFFERENT_CANONICAL",
+	redirectTarget: string,
+	canonicalTarget: string,
 }
 
 export type ValidationResultType = DeepReadonly<LinkError
@@ -481,7 +500,7 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 		}))).flat(1);
 		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles}]) => {
 			if (res.data !== null) {
-				return await pool!.validateFile({baseUrl, url, res: res as FoundPageFetchResult, roles});
+				return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles});
 			}else {
 				return [];
 			}

@@ -9,9 +9,9 @@ import debug from "debug";
 
 const log = debug("website-validator:worker");
 
-export const validateFile = async ({baseUrl, url, res, roles}: {baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>}) => {
-	const r = await validateFileOrig(baseUrl, url, res, roles);
-	log("validateFile called with %s, result: %s", JSON.stringify({baseUrl, url, res, roles}, undefined, 4), JSON.stringify(r, undefined, 4));
+export const validateFile = async ({baseUrl, indexName, url, res, roles}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>}) => {
+	const r = await validateFileOrig(baseUrl, indexName, url, res, roles);
+	log("validateFile called with %s, result: %s", JSON.stringify({baseUrl, indexName, url, res, roles}, undefined, 4), JSON.stringify(r, undefined, 4));
 	return r;
 };
 

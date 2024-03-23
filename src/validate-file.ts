@@ -1,15 +1,38 @@
 import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, ValidationResultType, isInternalLink} from "./index.js";
+import {FoundPageFetchResult, UrlRole, ValidationResultType, getRedirect, isInternalLink, toCanonical} from "./index.js";
 import {JSDOM} from "jsdom";
-import {getElementLocation, validateEpub, validatePdf, vnuValidate} from "./utils.js";
+import {findAllTagsInHTML, getElementLocation, validateEpub, validatePdf, vnuValidate} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
 import path from "node:path";
 import xml2js from "xml2js";
 
-export const validateFile = async (baseUrl: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
+export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
 	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+	const redirect = await getRedirect(res);
+	const allRedirectErrors = await (async () => {
+		if (redirect !== undefined && contentType === "text/html") {
+				const allLinks = await findAllTagsInHTML("link", res.data);
+				const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
+				if (allCanonicals.length > 0) {
+					const canonicalHref = allCanonicals[0].attrs["href"] ? toCanonical(baseUrl, indexName)(allCanonicals[0].attrs["href"]) : "";
+					if (canonicalHref !== redirect) {
+						return [{
+							type: "REDIRECT_DIFFERENT_CANONICAL",
+							redirectTarget: redirect,
+							canonicalTarget: allCanonicals[0].attrs["href"] ?? "",
+						}] as const;
+					}else {
+						return [];
+					}
+				}else {
+					return [];
+				}
+		}else {
+			return [];
+		}
+	})();
 	const allDocumentErrors = await (async () => {
 		if (contentType === "text/html") {
 			const contents = await fs.readFile(res.data.path);
@@ -25,6 +48,34 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					} as const;
 				});
 			})();
+			const canonicalLinkErrors = await (async () => {
+				const allLinks = await findAllTagsInHTML("link", res.data);
+				const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
+				if (allCanonicals.length > 1) {
+					return [{
+						type: "MULTIPLE_CANONICAL_LINKS",
+						canonicalLinks: allCanonicals.map(({outerHTML, selector}) => ({
+							outerHTML,
+							selector,
+						})),
+					}] as const;
+				}else if (redirect === undefined && allCanonicals.length === 1) {
+					const canonicalHref = allCanonicals[0].attrs["href"] ? toCanonical(baseUrl, indexName)(allCanonicals[0].attrs["href"]) : "";
+					if (canonicalHref !== url) {
+						return [{
+							type: "NON_REDIRECT_DIFFERENT_CANONICAL",
+							canonicalLink: allCanonicals[0].attrs["href"] ?? "",
+							location: {
+								url: url,
+							},
+						}] as const;
+					}else {
+						return [];
+					}
+				}else {
+					return [];
+				}
+			})();
 			const jsonLdErrors = (() => {
 				const allJSONLDs = [...dom.window.document.querySelectorAll("script[type='application/ld+json']")];
 				return allJSONLDs.flatMap((jsonLd) => {
@@ -36,7 +87,7 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 					}
 				});
 			})();
-			return [...htmlErrors, ...jsonLdErrors];
+			return [...htmlErrors, ...jsonLdErrors, ...canonicalLinkErrors];
 		}else if (contentType === "application/epub+zip") {
 			const results = await validateEpub(res.data);
 			return results.map((msg) => ({
@@ -151,6 +202,6 @@ export const validateFile = async (baseUrl: string, url: string, res: FoundPageF
 	// TODO: validate rss item can have 1 link and 1 guid
 	// TODO: if rss.item.guid isPermalink=true or missing then validate target URL
 	// TODO: validate atom item can have 1 id
-	return [...allDocumentErrors];
+	return [...allRedirectErrors, ...allDocumentErrors];
 }
 
