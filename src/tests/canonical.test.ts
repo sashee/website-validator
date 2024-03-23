@@ -98,6 +98,28 @@ describe("canonical link", () => {
 		assert(errors[0].canonicalTarget.includes(failId));
 		assert(errors[0].redirectTarget.includes("/refresh-target.html"));
 	});
+	it("a redirect's canonical can be external", async () => {
+		const {nextFailId, getFailIds} = initFailIds();
+		const errors = await setupTestFiles([
+			{
+				filename: "index.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+		<meta http-equiv="refresh" content="0; url=https://example2.com/refresh-target/">
+		<link rel="canonical" href="https://example2.com/refresh-target/">
+	</head>
+	<body>
+	</body>
+</html>
+				`
+			},
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		const failIds = getFailIds();
+		assert.equal(errors.length, failIds.length);
+	});
 	it("a page's canonical link can only be itself", async () => {
 		const {nextFailId, getFailIds} = initFailIds();
 		const failId = nextFailId();

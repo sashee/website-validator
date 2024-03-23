@@ -16,7 +16,18 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 				const allLinks = await findAllTagsInHTML("link", res.data);
 				const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
 				if (allCanonicals.length > 0) {
-					const canonicalHref = allCanonicals[0].attrs["href"] ? toCanonical(baseUrl, indexName)(allCanonicals[0].attrs["href"]) : "";
+					const canonicalHref = (() => {
+						const href = allCanonicals[0].attrs["href"];
+						if (href) {
+							if (isInternalLink(baseUrl)(href)) {
+								return toCanonical(baseUrl, indexName)(href) 
+							}else {
+								return href;
+							}
+						}else {
+							return "";
+						}
+					})();
 					if (canonicalHref !== redirect) {
 						return [{
 							type: "REDIRECT_DIFFERENT_CANONICAL",
