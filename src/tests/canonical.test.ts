@@ -134,6 +134,7 @@ describe("canonical link", () => {
 	</head>
 	<body>
 		<a href="good.html">good</a>
+		<a href="/good/">good</a>
 		<a href="bad.html">bad</a>
 	</body>
 </html>
@@ -147,6 +148,21 @@ describe("canonical link", () => {
 	<head>
 		<title>title</title>
 		<link rel="canonical" href="good.html">
+	</head>
+	<body>
+	</body>
+</html>
+
+				`
+			},
+			{
+				filename: "good/index.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+		<link rel="canonical" href="/good/index.html">
 	</head>
 	<body>
 	</body>

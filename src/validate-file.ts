@@ -28,7 +28,8 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 							return "";
 						}
 					})();
-					if (canonicalHref !== redirect) {
+					const canonicalRedirect = isInternalLink(baseUrl)(redirect) ? toCanonical(baseUrl, indexName)(redirect) : redirect;
+					if (canonicalHref !== canonicalRedirect) {
 						return [{
 							type: "REDIRECT_DIFFERENT_CANONICAL",
 							redirectTarget: redirect,
