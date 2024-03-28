@@ -192,7 +192,8 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 							assert(height !== undefined);
 							assert(l[0].width !== undefined);
 							assert(l[0].height !== undefined);
-							return Math.abs(l[0].height - height * l[0].width / width) > 1
+							const res = Math.abs(l[0].height - height * l[0].width / width) > 2;
+							return res;
 						});
 					})();
 					const sizesIncorrect = (() => {
