@@ -12,6 +12,7 @@ import util from "node:util";
 import vnu from "vnu-jar";
 import epubchecker from "epubchecker";
 import muhammara from "muhammara";
+import sharp from "sharp";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -131,7 +132,7 @@ export const findAllTagsInHTML = addFileCache(async (tagName: string, page: Foun
 	const dom = new JSDOM(await fs.readFile(page.path, "utf8"));
 	return [...dom.window.document.querySelectorAll(tagName)]
 	.map((tag) => ({
-		attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)])),
+		attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)!])),
 		outerHTML: tag.outerHTML,
 		selector: getElementLocation(tag),
 	}));
@@ -161,3 +162,11 @@ export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"
 	}
 	return [];
 }, {calcCacheKey: (data) => ["validatepdf_1", new Date().getTime(), data.path, data.mtime]});
+
+export const getImageDimensions = addFileCache(async (data: FoundPageFetchResult["data"]) => {
+	const metadata = await sharp(await fs.readFile(data.path)).metadata();
+	return {
+		width: metadata.width,
+		height: metadata.height,
+	};
+}, {calcCacheKey: (data) => ["getImageDimensions_1", new Date().getTime(), data.path, data.mtime]});

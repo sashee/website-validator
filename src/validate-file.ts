@@ -1,14 +1,16 @@
 import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, ValidationResultType, getRedirect, isInternalLink, toCanonical} from "./index.js";
+import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, getRedirect, isInternalLink, toCanonical} from "./index.js";
 import {JSDOM} from "jsdom";
-import {findAllTagsInHTML, getElementLocation, validateEpub, validatePdf, vnuValidate} from "./utils.js";
+import {findAllTagsInHTML, getElementLocation, validateEpub, validatePdf, vnuValidate, getImageDimensions} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
 import path from "node:path";
 import xml2js from "xml2js";
+import { strict as assert } from "node:assert";
+import {parseSrcset} from "srcset";
 
-export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>): Promise<ValidationResultType[]> => {
+export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}): Promise<ValidationResultType[]> => {
 	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 	const redirect = await getRedirect(res);
 	const allRedirectErrors = await (async () => {
@@ -99,7 +101,101 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 					}
 				});
 			})();
-			return [...htmlErrors, ...jsonLdErrors, ...canonicalLinkErrors];
+			const imgErrors = await (async () => {
+				const allImgs = await findAllTagsInHTML("img", res.data);
+				return (await Promise.all(allImgs.map(async (img) => {
+					const src = await (async () => {
+						if (img.attrs["src"]) {
+							const res = linkedFiles[toCanonical(baseUrl, indexName)(img.attrs["src"])];
+							assert(res.data);
+							const dimensions = await getImageDimensions(res.data);
+							assert(dimensions.width !== undefined);
+							assert(dimensions.height !== undefined);
+							return {
+								url: img.attrs["src"],
+								width: dimensions.width,
+								height: dimensions.height,
+							}
+						}else {
+							return undefined;
+						}
+					})();
+					const srcset = await (async () => {
+						if (img.attrs["srcset"]) {
+							const srcset = parseSrcset(img.attrs["srcset"]);
+							return Promise.all(srcset.map(async ({url, density, width}) => {
+								const res = linkedFiles[toCanonical(baseUrl, indexName)(url)];
+								assert(res, JSON.stringify({url, linkedFiles}, undefined, 4));
+								assert(res.data);
+								const dimensions = await getImageDimensions(res.data);
+								assert(dimensions.width !== undefined);
+								assert(dimensions.height !== undefined);
+								return {
+									url,
+									width: dimensions.width,
+									height: dimensions.height,
+									descriptor: density !== undefined ? {density} : {width: width!},
+								} as const;
+							}));
+						}else {
+							return undefined;
+						}
+					})();
+					const srcSetWidthsIncorrect = srcset?.some(({width, descriptor}) => descriptor.width !== undefined && width !== descriptor.width);
+					const srcSetDensitiesIncorrect = (() => {
+						const mergedSrcSets = [
+							...(srcset ?? []).filter(({descriptor}) => descriptor.density !== undefined),
+							...(src !== undefined ? [{...src, descriptor: {density: 1}}]: []),
+						];
+						const maxDensity = Math.max(...mergedSrcSets.map(({descriptor}) => {
+							assert(descriptor.density !== undefined);
+							return descriptor.density;
+						}));
+						if (maxDensity === Number.NEGATIVE_INFINITY) {
+							return false;
+						}else {
+							const maxWidth = mergedSrcSets.find(({descriptor}) => descriptor.density === maxDensity)?.width;
+							assert(maxWidth);
+							return mergedSrcSets.some(({width, descriptor}) => {
+								assert(descriptor.density !== undefined);
+								return Math.abs(width - (maxWidth * descriptor.density / maxDensity)) > 1;
+							});
+						}
+					})();
+					const aspectRatiosIncorrect = (() => {
+						const mergedSrcSets = [
+							...(srcset ?? []),
+							...(src !== undefined ? [src]: []),
+						].map(({width, height}) => ({width, height}));
+						assert(mergedSrcSets.length > 0);
+						return mergedSrcSets.some(({width, height}, _i, l) => Math.abs(width/height - l[0].width / l[0].height) > Number.EPSILON);
+					})();
+					const sizesIncorrect = (() => {
+						const sizes = img.attrs["sizes"];
+						const sizePattern = /^(?<num>\d+)px$/;
+						if (sizes !== undefined && sizes.includes(" ") === false && sizes.match(sizePattern)) {
+							const num = parseInt(sizes.match(sizePattern)!.groups!["num"]);
+							return !(srcset ?? []).some(({width}) => width === num);
+						}else {
+							return false;
+						}
+					})();
+					if (srcSetWidthsIncorrect || srcSetDensitiesIncorrect || aspectRatiosIncorrect || sizesIncorrect) {
+						return [{
+							type: "IMG_SRC_INVALID",
+							location: {
+								url: url,
+								location: {outerHTML: img.outerHTML, selector: img.selector},
+							},
+							src,
+							srcset,
+							sizes: img.attrs["sizes"],
+						}] as const;
+					}
+					return [];
+				}))).flat(1);
+			})();
+			return [...htmlErrors, ...jsonLdErrors, ...canonicalLinkErrors, ...imgErrors];
 		}else if (contentType === "application/epub+zip") {
 			const results = await validateEpub(res.data);
 			return results.map((msg) => ({

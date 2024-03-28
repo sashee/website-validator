@@ -306,6 +306,26 @@ type DocumentErrors = {
 	type: "REDIRECT_DIFFERENT_CANONICAL",
 	redirectTarget: string,
 	canonicalTarget: string,
+} | {
+	type: "IMG_SRC_INVALID",
+	location: {
+		url: string,
+		location: {outerHTML: string, selector: string},
+	},
+	src: {
+		url: string,
+		width: number,
+		height: number,
+	} | undefined,
+	srcset: {
+		url: string,
+		width: number,
+		height: number,
+		descriptor: {
+			density: number,
+		} | {width: number},
+	}[] | undefined,
+	sizes: string | undefined,
 }
 
 export type ValidationResultType = DeepReadonly<LinkError
@@ -493,14 +513,19 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 		log("fetchedFiles: %s, allLinks: %s, files: %s", JSON.stringify(fetchedFiles, undefined, 4), JSON.stringify(allLinks, undefined, 4), JSON.stringify(files, undefined, 4));
 		const allLinksErrors = (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
 			const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
-			if (!target) {
-				throw new Error("whops; " + toCanonical(baseUrl, indexName)(link.url));
-			}
+			assert(target, "whops; " + toCanonical(baseUrl, indexName)(link.url));
 			return pool!.checkLink({baseUrl, indexName, target, link});
 		}))).flat(1);
-		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles}]) => {
+		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]) => {
 			if (res.data !== null) {
-				return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles});
+				assert(links);
+				const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
+					const target = fetchedFiles.find((file) => toCanonical(baseUrl, indexName)(file.url) === toCanonical(baseUrl, indexName)(url))?.res;
+					assert(target, JSON.stringify({fetchedFiles, target, url}, undefined, 4));
+
+					return [toCanonical(baseUrl, indexName)(url), target] as const;
+				}));
+				return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles});
 			}else {
 				return [];
 			}

@@ -1,5 +1,5 @@
 import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, LinkLocation, Assertion} from "./index.js";
+import {FoundPageFetchResult, UrlRole, LinkLocation, Assertion, FileFetchResult} from "./index.js";
 import {validateFile as validateFileOrig} from "./validate-file.js";
 import {getLinks as getLinksOrig} from "./get-links.js";
 import { Pool } from "./worker-runner.js";
@@ -9,8 +9,8 @@ import debug from "debug";
 
 const log = debug("website-validator:worker");
 
-export const validateFile = async ({baseUrl, indexName, url, res, roles}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>}) => {
-	const r = await validateFileOrig(baseUrl, indexName, url, res, roles);
+export const validateFile = async ({baseUrl, indexName, url, res, roles, linkedFiles}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}}) => {
+	const r = await validateFileOrig(baseUrl, indexName, url, res, roles, linkedFiles);
 	log("validateFile called with %s, result: %s", JSON.stringify({baseUrl, indexName, url, res, roles}, undefined, 4), JSON.stringify(r, undefined, 4));
 	return r;
 };
