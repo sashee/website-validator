@@ -132,7 +132,7 @@ export const findAllTagsInHTML = addFileCache(async (tagName: string, page: Foun
 	const dom = new JSDOM(await fs.readFile(page.path, "utf8"));
 	return [...dom.window.document.querySelectorAll(tagName)]
 	.map((tag) => ({
-		attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)!])),
+		attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)! as string | undefined])),
 		outerHTML: tag.outerHTML,
 		selector: getElementLocation(tag),
 	}));

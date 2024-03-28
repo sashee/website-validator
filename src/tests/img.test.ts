@@ -52,9 +52,12 @@ describe("img", () => {
 			assert(errors[0].location.location.outerHTML.includes("bad"));
 			assert(errors[0].srcset);
 			assert(errors[0].src);
+			assert(errors[0].src.external === false);
 			assert.equal(errors[0].src.width, 150);
 			assert("density" in errors[0].srcset[0].descriptor);
 			assert.equal(errors[0].srcset[0].descriptor.density, 2);
+			assert(errors[0].srcset[0].external === false);
+			assert(errors[0].srcset[1].external === false);
 			assert.equal(errors[0].srcset[0].width, 200);
 			assert.equal(errors[0].srcset[1].width, 150);
 		});
@@ -99,6 +102,8 @@ describe("img", () => {
 			assert("density" in errors[0].srcset[0].descriptor);
 			assert("density" in errors[0].srcset[1].descriptor);
 			assert.equal(errors[0].srcset[0].descriptor.density, 2);
+			assert(errors[0].srcset[0].external === false);
+			assert(errors[0].srcset[1].external === false);
 			assert.equal(errors[0].srcset[0].height, 200);
 			assert.equal(errors[0].srcset[1].height, 160);
 		});
@@ -138,6 +143,8 @@ describe("img", () => {
 			assert(errors[0].srcset);
 			assert("width" in errors[0].srcset[0].descriptor);
 			assert("width" in errors[0].srcset[1].descriptor);
+			assert(errors[0].srcset[0].external === false);
+			assert(errors[0].srcset[1].external === false);
 			assert.equal(errors[0].srcset[0].descriptor.width, 200);
 			assert.equal(errors[0].srcset[0].width, 200);
 			assert.equal(errors[0].srcset[1].descriptor.width, 100);
@@ -175,6 +182,8 @@ describe("img", () => {
 			assert(errors[0].srcset);
 			assert("width" in errors[0].srcset[0].descriptor);
 			assert("width" in errors[0].srcset[1].descriptor);
+			assert(errors[0].srcset[0].external === false);
+			assert(errors[0].srcset[1].external === false);
 			assert.equal(errors[0].srcset[0].descriptor.width, 200);
 			assert.equal(errors[0].srcset[0].width, 200);
 			assert.equal(errors[0].srcset[1].descriptor.width, 100);

@@ -314,17 +314,13 @@ type DocumentErrors = {
 	},
 	src: {
 		url: string,
-		width: number,
-		height: number,
-	} | undefined,
-	srcset: {
+	} & ({external: false, width: number, height: number } | {external: true}) | undefined,
+	srcset: Array<{
 		url: string,
-		width: number,
-		height: number,
 		descriptor: {
 			density: number,
 		} | {width: number},
-	}[] | undefined,
+	} & ({external: false, width: number, height: number } | {external: true})> | undefined,
 	sizes: string | undefined,
 }
 
@@ -520,8 +516,8 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			if (res.data !== null) {
 				assert(links);
 				const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
-					const target = fetchedFiles.find((file) => toCanonical(baseUrl, indexName)(file.url) === toCanonical(baseUrl, indexName)(url))?.res;
-					assert(target, JSON.stringify({fetchedFiles, target, url}, undefined, 4));
+					const target = files[toCanonical(baseUrl, indexName)(url)]?.res;
+					assert(target);
 
 					return [toCanonical(baseUrl, indexName)(url), target] as const;
 				}));

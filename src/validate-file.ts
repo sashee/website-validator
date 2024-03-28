@@ -105,16 +105,26 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 				const allImgs = await findAllTagsInHTML("img", res.data);
 				return (await Promise.all(allImgs.map(async (img) => {
 					const src = await (async () => {
-						if (img.attrs["src"]) {
-							const res = linkedFiles[toCanonical(baseUrl, indexName)(img.attrs["src"])];
-							assert(res.data);
-							const dimensions = await getImageDimensions(res.data);
-							assert(dimensions.width !== undefined);
-							assert(dimensions.height !== undefined);
-							return {
-								url: img.attrs["src"],
-								width: dimensions.width,
-								height: dimensions.height,
+						const srcAttr = img.attrs["src"];
+						if (srcAttr) {
+							if (isInternalLink(baseUrl)(srcAttr)) {
+								const res = linkedFiles[toCanonical(baseUrl, indexName)(srcAttr)];
+								assert(res);
+								assert(res.data);
+								const dimensions = await getImageDimensions(res.data);
+								assert(dimensions.width !== undefined);
+								assert(dimensions.height !== undefined);
+								return {
+									url: srcAttr,
+									width: dimensions.width,
+									height: dimensions.height,
+									external: false,
+								} as const;
+							}else {
+								return {
+									url: srcAttr,
+									external: true,
+								} as const;
 							}
 						}else {
 							return undefined;
@@ -124,18 +134,27 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 						if (img.attrs["srcset"]) {
 							const srcset = parseSrcset(img.attrs["srcset"]);
 							return Promise.all(srcset.map(async ({url, density, width}) => {
-								const res = linkedFiles[toCanonical(baseUrl, indexName)(url)];
-								assert(res, JSON.stringify({url, linkedFiles}, undefined, 4));
-								assert(res.data);
-								const dimensions = await getImageDimensions(res.data);
-								assert(dimensions.width !== undefined);
-								assert(dimensions.height !== undefined);
-								return {
-									url,
-									width: dimensions.width,
-									height: dimensions.height,
-									descriptor: density !== undefined ? {density} : {width: width!},
-								} as const;
+								if (isInternalLink(baseUrl)(url)) {
+									const res = linkedFiles[toCanonical(baseUrl, indexName)(url)];
+									assert(res, JSON.stringify({url, linkedFiles}, undefined, 4));
+									assert(res.data);
+									const dimensions = await getImageDimensions(res.data);
+									assert(dimensions.width !== undefined);
+									assert(dimensions.height !== undefined);
+									return {
+										url,
+										width: dimensions.width,
+										height: dimensions.height,
+										external: false,
+										descriptor: density !== undefined ? {density} : {width: width!},
+									} as const;
+								}else {
+									return {
+										url,
+										external: true,
+										descriptor: density !== undefined ? {density} : {width: width!},
+									} as const;
+								}
 							}));
 						}else {
 							return undefined;
@@ -146,7 +165,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 						const mergedSrcSets = [
 							...(srcset ?? []).filter(({descriptor}) => descriptor.density !== undefined),
 							...(src !== undefined ? [{...src, descriptor: {density: 1}}]: []),
-						];
+						].filter(({external}) => !external);
 						const maxDensity = Math.max(...mergedSrcSets.map(({descriptor}) => {
 							assert(descriptor.density !== undefined);
 							return descriptor.density;
@@ -158,6 +177,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 							assert(maxWidth);
 							return mergedSrcSets.some(({width, descriptor}) => {
 								assert(descriptor.density !== undefined);
+								assert(width !== undefined);
 								return Math.abs(width - (maxWidth * descriptor.density / maxDensity)) > 1;
 							});
 						}
@@ -166,14 +186,19 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 						const mergedSrcSets = [
 							...(srcset ?? []),
 							...(src !== undefined ? [src]: []),
-						].map(({width, height}) => ({width, height}));
-						assert(mergedSrcSets.length > 0);
-						return mergedSrcSets.some(({width, height}, _i, l) => Math.abs(width/height - l[0].width / l[0].height) > Number.EPSILON);
+						].filter(({external}) => !external).map(({width, height}) => ({width, height}));
+						return mergedSrcSets.length !== 0 && mergedSrcSets.some(({width, height}, _i, l) => {
+							assert(width !== undefined);
+							assert(height !== undefined);
+							assert(l[0].width !== undefined);
+							assert(l[0].height !== undefined);
+							return Math.abs(width/height - l[0].width / l[0].height) > 1
+						});
 					})();
 					const sizesIncorrect = (() => {
 						const sizes = img.attrs["sizes"];
 						const sizePattern = /^(?<num>\d+)px$/;
-						if (sizes !== undefined && sizes.includes(" ") === false && sizes.match(sizePattern)) {
+						if (srcset?.length! > 0 && sizes !== undefined && sizes.includes(" ") === false && sizes.match(sizePattern)) {
 							const num = parseInt(sizes.match(sizePattern)!.groups!["num"]);
 							return !(srcset ?? []).some(({width}) => width === num);
 						}else {
