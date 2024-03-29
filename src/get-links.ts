@@ -5,8 +5,7 @@ import xml2js from "xml2js";
 import jmespath from "jmespath";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {JSDOM} from "jsdom";
-import {extractAllUrlsFromCss, getElementLocation} from "./utils.js";
+import {extractAllUrlsFromCss, getElementLocation, getInterestingPageElements} from "./utils.js";
 import {DeepReadonly} from "ts-essentials";
 
 export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") => {
@@ -31,7 +30,7 @@ export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") 
 	}
 }
 
-export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
+export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
 	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 	const redirect = await getRedirect(res);
 	if (redirect !== undefined) {
@@ -84,82 +83,82 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 			location: {type: "json", jsonurl: url, jmespath: extractConfig.jmespath, index},
 		})));
 	}else if (role.type === "document" || contentType === "text/html") {
-		const contents = await fs.readFile(res.data.path);
-		const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl})
-		const linkAssets = [...dom.window.document.querySelectorAll("link[href]") as NodeListOf<HTMLLinkElement>].map((link) => {
+		const pageElements = await getInterestingPageElements(res.data);
+		const linkAssets = pageElements.tagCollections.link.filter((link) => link.attrs["href"]).map((link) => {
 			const {asserts, role, location} = (() => {
-				if(link.rel === "stylesheet") {
+				if(link.attrs["rel"] === "stylesheet") {
 					log("link is a stylesheet: url: %s, link: %O, res: %O", url, link.outerHTML, res);
 					return {
 						role: {type: "stylesheet"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}},
+						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
 					} as const;
-				}else if (link.rel === "alternate" && link.type === "application/atom+xml") {
+				}else if (link.attrs["rel"] === "alternate" && link.attrs["type"] === "application/atom+xml") {
 					return {
 						role: {type: "atom"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}},
+						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
 					} as const;
-				}else if (link.rel === "alternate" && link.type === "application/rss+xml") {
+				}else if (link.attrs["rel"] === "alternate" && link.attrs["type"] === "application/rss+xml") {
 					return {
 						role: {type: "rss"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}},
+						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
 					} as const;
-				}else if (link.rel === "icon" && link.sizes?.length === 1) {
-					const {width, height} = link.sizes.item(0)!.toLowerCase().match(/^(?<width>\d+)x(?<height>\d+)$/)!.groups!;
+				}else if (link.attrs["rel"] === "icon" && link.attrs["sizes"]?.split(" ").length === 1) {
+					const {width, height} = link.attrs["sizes"].split(" ")[0]!.toLowerCase().match(/^(?<width>\d+)x(?<height>\d+)$/)!.groups!;
 					return {
 						role: {type: "asset"},
 						asserts: [{type: "image"}, {type: "imageSize", width: Number(width), height: Number(height)}],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}},
+						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
 					} as const;
 				}else {
-					return {role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: link.outerHTML, selector: getElementLocation(link)}}} as const;
+					return {role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}}} as const;
 				}
 			})();
 			const contentTypeAssertions = (() => {
-				if (link.type) {
+				if (link.attrs["type"]) {
 					// https://validator.w3.org/feed/docs/warning/UnexpectedContentType.html
-					if (link.type === "application/rss+xml" || link.type === "application/atom+xml") {
-						return [{type: "content-type", contentType: [link.type, "application/xml"]}] as const;
+					if (link.attrs["type"] === "application/rss+xml" || link.attrs["type"] === "application/atom+xml") {
+						return [{type: "content-type", contentType: [link.attrs["type"], "application/xml"]}] as const;
 					}else {
-						return [{type: "content-type", contentType: [link.type]}] as const;
+						return [{type: "content-type", contentType: [link.attrs["type"]]}] as const;
 					}
 				}else {
 					return [];
 				}
 			})();
-			const result = {url: link.href, role, asserts: [...contentTypeAssertions, ...asserts], location};
+			const result = {url: new URL(link.attrs["href"]!, url).href, role, asserts: [...contentTypeAssertions, ...asserts], location};
 			log("link result: url: %s, result: %O", url, result);
 			return result;
 		});
-		const scriptAssets = [...dom.window.document.querySelectorAll("script[src]") as NodeListOf<HTMLScriptElement>].map((script) => {
-			return {url: script.src, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: getElementLocation(script)}}} as const;
+		const scriptAssets = pageElements.tagCollections.script.filter((script) => script.attrs["src"]).map((script) => {
+			return {url: new URL(script.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: script.selector}}} as const;
 		});
-		const ogImages = [...dom.window.document.querySelectorAll("meta[property='og:image']") as NodeListOf<HTMLMetaElement>].map((ogImage) => {
-			return {url: ogImage.content, role: {type: "asset"}, asserts: [{type: "image"}, {type: "permanent"}], location: {type: "html", element: {outerHTML: ogImage.outerHTML, selector: getElementLocation(ogImage)}}} as const;
+		const ogImages = pageElements.tagCollections.meta.filter((meta) => meta.attrs["property"] === "og:image" && meta.attrs["content"]).map((ogImage) => {
+			return {url: new URL(ogImage.attrs["content"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}, {type: "permanent"}], location: {type: "html", element: {outerHTML: ogImage.outerHTML, selector: ogImage.selector}}} as const;
 		});
-		const imgSrcAssets = [...dom.window.document.querySelectorAll("img[src]") as NodeListOf<HTMLImageElement>].map((img) => {
-			return {url: img.src, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: getElementLocation(img)}}} as const;
+		const imgSrcAssets = pageElements.tagCollections.img.filter((img) => img.attrs["src"]).map((img) => {
+			return {url: new URL(img.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: img.selector}}} as const;
 		});
-		const imgSrcsetAssets = [...dom.window.document.querySelectorAll("img[srcset]") as NodeListOf<HTMLImageElement>].map((img) => {
-			const parsed = parseSrcset(img.getAttribute("srcset")!);
-			return parsed.map(({url}) => ({url, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: getElementLocation(img)}}} as const));
+		const imgSrcsetAssets = pageElements.tagCollections.img.filter((img) => img.attrs["srcset"]).map((img) => {
+			const parsed = parseSrcset(img.attrs["srcset"]!);
+			return parsed.map((srcset) => ({url: new URL(srcset.url, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: img.selector}}} as const));
 		}).flat();
-		const videoSrcAssets = [...dom.window.document.querySelectorAll("video[src]") as NodeListOf<HTMLVideoElement>].map((video) => {
-			return {url: video.src, role: {type: "asset"}, asserts: [{type: "video"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: getElementLocation(video)}}} as const;
+		const videoSrcAssets = pageElements.tagCollections.video.filter((video) => video.attrs["src"]).map((video) => {
+			return {url: new URL(video.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "video"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: video.selector}}} as const;
 		});
-		const videoPosterAssets = [...dom.window.document.querySelectorAll("video[poster]") as NodeListOf<HTMLVideoElement>].map((video) => {
-			return {url: video.poster, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: getElementLocation(video)}}} as const;
+		const videoPosterAssets = pageElements.tagCollections.video.filter((video) => video.attrs["poster"]).map((video) => {
+			return {url: new URL(video.attrs["poster"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: video.selector}}} as const;
 		});
-		const links = [...dom.window.document.querySelectorAll("a[href]") as NodeListOf<HTMLAnchorElement>].map((anchor) => {
-			return {url: anchor.href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: anchor.outerHTML, selector: getElementLocation(anchor)}}} as const;
+		const links = pageElements.tagCollections.a.filter((a) => a.attrs["href"]).map((anchor) => {
+			return {url: new URL(anchor.attrs["href"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: anchor.outerHTML, selector: anchor.selector}}} as const;
 		});
 		return [...linkAssets, ...scriptAssets, ...ogImages, ...imgSrcAssets, ...imgSrcsetAssets, ...links, ...videoSrcAssets, ...videoPosterAssets];
 	}else if (contentType === "text/css") {
 		const contents = await fs.readFile(res.data.path);
 		const allUrls = await extractAllUrlsFromCss(contents.toString("utf8"));
+		const pageUrl = url;
 		return allUrls.map(({url, parent, prop, position}) => {
 			const {asserts, role, location} = (() => {
 				if (parent === "@font-face" && prop === "src") {
@@ -172,7 +171,7 @@ export const getLinks = async (baseUrl: string, url: string, role: DeepReadonly<
 					return {role: {type: "asset"}, asserts: [], location: {type: "css", position, target: url}} as const;
 				}
 			})();
-			return {url, role, asserts: asserts, location};
+			return {url: new URL(url, pageUrl).href, role, asserts: asserts, location};
 		});
 	}else {
 		return [];

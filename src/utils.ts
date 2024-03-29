@@ -142,9 +142,11 @@ export const getInterestingPageElements = addFileCache(async (page: FoundPageFet
 			link: elementsWithTageName("link"),
 			meta: elementsWithTageName("meta"),
 			script: elementsWithTageName("script"),
+			video: elementsWithTageName("video"),
+			a: elementsWithTageName("a"),
 		}
 	}
-}, {calcCacheKey: (page) => ["getInterestingPageElements_1", page.path, page.mtime]});
+}, {calcCacheKey: (page) => ["getInterestingPageElements_2", page.path, page.mtime]});
 
 export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"], type: "html" | "css" | "svg") => {
 	const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", data.path]);

@@ -15,6 +15,7 @@ import { getInterestingPageElements } from "./utils.js";
 export const log = debug("website-validator");
 
 export type FileFetchResult = {
+	url: string,
 	headers: {[name: string]: string},
 	status: number,
 	data: {
@@ -24,6 +25,7 @@ export type FileFetchResult = {
 }
 
 export type FoundPageFetchResult = {
+	url: FileFetchResult["url"],
 	headers: FileFetchResult["headers"],
 	data: NonNullable<FileFetchResult["data"]>,
 	status: FileFetchResult["status"],
@@ -41,8 +43,7 @@ export const getRedirect = async (res: FoundPageFetchResult) => {
 			if (redirectMetas.length > 1) {
 				throw new Error("More than one redirect metas are not supported...");
 			}else if (redirectMetas.length === 1) {
-				const url = redirectMetas[0].attrs["content"]!.match(contentRegex)!.groups!["url"]!;
-				return url;
+				return new URL(redirectMetas[0].attrs["content"]!.match(contentRegex)!.groups!["url"]!, res.url).href;
 			}else {
 				return undefined;
 			}
@@ -368,11 +369,13 @@ const fetchSingleFile = (baseUrl: string, targetConfig: TargetConfig) => (url: s
 				const stat = await fs.stat(filePath);
 				return {
 					...responseMeta(fileUrl),
+					url,
 					data: {path: filePath, mtime: stat.mtimeMs},
 				}
 			}catch(e: any) {
 				if (e.code === "ENOENT") {
 					return {
+						url,
 						headers: {},
 						status: 404,
 						data: null,
@@ -400,11 +403,13 @@ export const fetchFileGraph = (pool: Pool) => (baseUrl: string, targetConfig: Ta
 				const stat = await fs.stat(filePath);
 				return {
 					...responseMeta(fileUrl),
+					url,
 					data: {path: filePath, mtime: stat.mtimeMs},
 				}
 			}catch(e: any) {
 				if (e.code === "ENOENT") {
 					return {
+						url,
 						headers: {},
 						status: 404,
 						data: null,
@@ -483,50 +488,59 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			...extraLinks,
 		];
 
-		const notFoundErrors: NotFoundError[] = [
-			...fetchBases.map(({url}, index) => {
-				return {url, index, type: "fetchBase"} as const;
-			}),
-		].flatMap(({url, index, type}) => {
-			const canonical = toCanonical(baseUrl, indexName)(url);
-			const file = fetchedFiles.find((file) => file.url === canonical);
-			if (file === undefined || file.res.data === null) {
-				return [{
-					type: "NOT_FOUND",
-					location: {
-						url,
-						location: {
-							type,
-							index,
-						}
-					}
-				}] as const;
-			}else {
-				return [];
-			}
-		});
-
 		log("fetchedFiles: %s, allLinks: %s, files: %s", JSON.stringify(fetchedFiles, undefined, 4), JSON.stringify(allLinks, undefined, 4), JSON.stringify(files, undefined, 4));
-		const allLinksErrors = (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
-			const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
-			assert(target, "whops; " + toCanonical(baseUrl, indexName)(link.url));
-			return pool!.checkLink({baseUrl, indexName, target, link});
-		}))).flat(1);
-		const allPageErrors = (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]) => {
-			if (res.data !== null) {
-				assert(links);
-				const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
-					const target = files[toCanonical(baseUrl, indexName)(url)]?.res;
-					assert(target);
+		return (await Promise.all([
+			(async () => {
+				// not found errors
+				return [
+					...fetchBases.map(({url}, index) => {
+						return {url, index, type: "fetchBase"} as const;
+					}),
+				].flatMap(({url, index, type}) => {
+					const canonical = toCanonical(baseUrl, indexName)(url);
+					const file = fetchedFiles.find((file) => file.url === canonical);
+					if (file === undefined || file.res.data === null) {
+						return [{
+							type: "NOT_FOUND",
+							location: {
+								url,
+								location: {
+									type,
+									index,
+								}
+							}
+						}] as const;
+					}else {
+						return [];
+					}
+				});
+			})(),
+			(async () => {
+				// link errors
+				return (await Promise.all(allLinks.filter((link) => isInternalLink(baseUrl)(link.url)).map(async (link) => {
+					const target = files[toCanonical(baseUrl, indexName)(link.url)]?.res;
+					assert(target, "whops; " + JSON.stringify({canonical: toCanonical(baseUrl, indexName)(link.url)}, undefined, 4));
+					return pool!.checkLink({baseUrl, indexName, target, link});
+				}))).flat(1);
+			})(),
+			(async () => {
+				// file errors
+				return (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]) => {
+					if (res.data !== null) {
+						assert(links);
+						const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
+							const target = files[toCanonical(baseUrl, indexName)(url)]?.res;
+							assert(target);
 
-					return [toCanonical(baseUrl, indexName)(url), target] as const;
-				}));
-				return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles});
-			}else {
-				return [];
-			}
-		}))).flat(2);
-		return [...allPageErrors, ...notFoundErrors, ...allLinksErrors];
+							return [toCanonical(baseUrl, indexName)(url), target] as const;
+						}));
+						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles});
+					}else {
+						return [];
+					}
+				}))).flat(2);
+			})(),
+		])).flat(1);
 	});
 }
 
@@ -581,7 +595,7 @@ export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: s
 									if (res.data === null) {
 										return [];
 									}
-									return pool!.getLinks({baseUrl, url: fetchBase.url, role: fetchBase.role, res: res as FoundPageFetchResult});
+									return pool!.getLinks({url: fetchBase.url, role: fetchBase.role, res: res as FoundPageFetchResult});
 								}));
 							}
 							const linksInJsonsWithNewFilesNewConfig = (await getLinksShallow(baseUrl, targetConfig)(fetchBases.filter(({role}) => role.type === "json"))).flat();

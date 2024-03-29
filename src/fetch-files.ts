@@ -35,7 +35,7 @@ export const recursiveFetchFiles = (pool: Pool, fetchFile: (url: string) => Prom
 		}, 10),
 		RxJsOperators.mergeMap(async ({url, role, res}) => {
 			if (res.data !== null) {
-				const links = await pool!.getLinks({baseUrl: toCanonical(baseUrl, indexName)(url), url, role, res: res as FoundPageFetchResult});
+				const links = await pool!.getLinks({url: toCanonical(baseUrl, indexName)(url), role, res: res as FoundPageFetchResult});
 				const discoveredUrls = links.map((link) => ({url: toCanonical(url, indexName)(link.url), role: link.role}));
 				discoveredUrls.filter(({url}) => isInternalLink(baseUrl)(url)).forEach(({url, role}) => urlSubject.next({url, role}));
 				return {url, role, res: res as FoundPageFetchResult, links};

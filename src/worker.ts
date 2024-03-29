@@ -15,9 +15,9 @@ export const validateFile = async ({baseUrl, indexName, url, res, roles, linkedF
 	return r;
 };
 
-export const getLinks = async ({baseUrl, url, role, res}: {baseUrl: string, url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult}): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
-	const r = await getLinksOrig(baseUrl, url, role, res);
-	log("getLinks called with %s, result: %s", JSON.stringify({baseUrl, url, role, res}, undefined, 4), JSON.stringify(r, undefined, 4));
+export const getLinks = async ({url, role, res}: {url: string, role: DeepReadonly<UrlRole>, res: FoundPageFetchResult}): Promise<DeepReadonly<{url: string, role: UrlRole, asserts: readonly Assertion[], location: LinkLocation}[]>> => {
+	const r = await getLinksOrig(url, role, res);
+	log("getLinks called with %s, result: %s", JSON.stringify({url, role, res}, undefined, 4), JSON.stringify(r, undefined, 4));
 	return r;
 };
 
