@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import {DeepReadonly} from "ts-essentials";
 import { Assertion, LinkLocation, toCanonical, LinkErrorTypes, fetchFileGraph, FileFetchResult, isInternalLink, ValidationResultType, getRedirect, FoundPageFetchResult } from "./index.js";
-import { collectAllIdsFromPage } from "./utils.js";
+import { getInterestingPageElements } from "./utils.js";
 
 export const checkLink = (baseUrl: string, indexName: string) => async (link: {url: string, asserts: readonly Assertion[], location: LinkLocation}, target: DeepReadonly<FileFetchResult>): Promise<ValidationResultType[]> => {
 	if (isInternalLink(baseUrl)(link.url)) {
@@ -32,7 +32,7 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 					const hash = new URL(link.url, baseUrl).hash;
 					if (hash !== "") {
 						// validate hash
-						const allIdsOnPage = await collectAllIdsFromPage(target.data!);
+						const allIdsOnPage = (await getInterestingPageElements(target.data!)).ids;
 						if (!allIdsOnPage.map(({id}) => id).includes(hash.substring(1))) {
 							return [{
 								type: "HASH_TARGET_NOT_FOUND",

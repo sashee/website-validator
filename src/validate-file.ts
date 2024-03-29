@@ -1,7 +1,6 @@
 import {DeepReadonly} from "ts-essentials";
 import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, getRedirect, isInternalLink, toCanonical} from "./index.js";
-import {JSDOM} from "jsdom";
-import {findAllTagsInHTML, getElementLocation, validateEpub, validatePdf, vnuValidate, getImageDimensions} from "./utils.js";
+import {validateEpub, validatePdf, vnuValidate, getImageDimensions, getInterestingPageElements} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
@@ -15,42 +14,40 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 	const redirect = await getRedirect(res);
 	const allRedirectErrors = await (async () => {
 		if (redirect !== undefined && contentType === "text/html") {
-				const allLinks = await findAllTagsInHTML("link", res.data);
-				const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
-				if (allCanonicals.length > 0) {
-					const canonicalHref = (() => {
-						const href = allCanonicals[0].attrs["href"];
-						if (href) {
-							if (isInternalLink(baseUrl)(href)) {
-								return toCanonical(baseUrl, indexName)(href) 
-							}else {
-								return href;
-							}
+			const allLinks = (await getInterestingPageElements(res.data)).tagCollections.link;
+			const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
+			if (allCanonicals.length > 0) {
+				const canonicalHref = (() => {
+					const href = allCanonicals[0].attrs["href"];
+					if (href) {
+						if (isInternalLink(baseUrl)(href)) {
+							return toCanonical(baseUrl, indexName)(href) 
 						}else {
-							return "";
+							return href;
 						}
-					})();
-					const canonicalRedirect = isInternalLink(baseUrl)(redirect) ? toCanonical(baseUrl, indexName)(redirect) : redirect;
-					if (canonicalHref !== canonicalRedirect) {
-						return [{
-							type: "REDIRECT_DIFFERENT_CANONICAL",
-							redirectTarget: redirect,
-							canonicalTarget: allCanonicals[0].attrs["href"] ?? "",
-						}] as const;
 					}else {
-						return [];
+						return "";
 					}
+				})();
+				const canonicalRedirect = isInternalLink(baseUrl)(redirect) ? toCanonical(baseUrl, indexName)(redirect) : redirect;
+				if (canonicalHref !== canonicalRedirect) {
+					return [{
+						type: "REDIRECT_DIFFERENT_CANONICAL",
+						redirectTarget: redirect,
+						canonicalTarget: allCanonicals[0].attrs["href"] ?? "",
+					}] as const;
 				}else {
 					return [];
 				}
+			}else {
+				return [];
+			}
 		}else {
 			return [];
 		}
 	})();
 	const allDocumentErrors = await (async () => {
 		if (contentType === "text/html") {
-			const contents = await fs.readFile(res.data.path);
-			const dom = new JSDOM(contents.toString("utf8"), {url: baseUrl});
 			const htmlErrors = await (async () => {
 				return (await vnuValidate(res.data, "html")).map((object) => {
 					return {
@@ -63,7 +60,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 				});
 			})();
 			const canonicalLinkErrors = await (async () => {
-				const allLinks = await findAllTagsInHTML("link", res.data);
+				const allLinks = (await getInterestingPageElements(res.data)).tagCollections.link;
 				const allCanonicals = allLinks.filter((link) => link.attrs["rel"] === "canonical");
 				if (allCanonicals.length > 1) {
 					return [{
@@ -90,19 +87,19 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 					return [];
 				}
 			})();
-			const jsonLdErrors = (() => {
-				const allJSONLDs = [...dom.window.document.querySelectorAll("script[type='application/ld+json']")];
+			const jsonLdErrors = await (async () => {
+				const allJSONLDs = (await getInterestingPageElements(res.data)).tagCollections.script.filter(({attrs}) => attrs["type"] === "application/ld+json");
 				return allJSONLDs.flatMap((jsonLd) => {
 					try {
 						JSON.parse(jsonLd.innerHTML);
 						return [] as const;
 					}catch {
-						return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {outerHTML: jsonLd.outerHTML, selector: getElementLocation(jsonLd)}}}] as const;
+						return [{type: "JSON_LD_UNPARSEABLE", location: {url, location: {outerHTML: jsonLd.outerHTML, selector: jsonLd.selector}}}] as const;
 					}
 				});
 			})();
 			const imgErrors = await (async () => {
-				const allImgs = await findAllTagsInHTML("img", res.data);
+				const allImgs = (await getInterestingPageElements(res.data)).tagCollections.img;
 				return (await Promise.all(allImgs.map(async (img) => {
 					const src = await (async () => {
 						const srcAttr = img.attrs["src"];

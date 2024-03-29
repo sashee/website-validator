@@ -10,7 +10,7 @@ import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import debug from "debug";
-import { findAllTagsInHTML } from "./utils.js";
+import { getInterestingPageElements } from "./utils.js";
 
 export const log = debug("website-validator");
 
@@ -35,7 +35,7 @@ export const getRedirect = async (res: FoundPageFetchResult) => {
 	}else {
 		const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 		if (contentType === "text/html") {
-			const allMetaTags = await findAllTagsInHTML("meta", res.data);
+			const allMetaTags = (await getInterestingPageElements(res.data)).tagCollections.meta;
 			const contentRegex = /^\d+(; url=(?<url>.*))?$/;
 			const redirectMetas = allMetaTags.filter((meta) => meta.attrs["http-equiv"] === "refresh" && meta.attrs["content"]?.match(contentRegex)?.groups?.["url"] !== undefined);
 			if (redirectMetas.length > 1) {

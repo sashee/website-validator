@@ -119,24 +119,32 @@ export const extractAllUrlsFromCss = async (css: string) => {
 	return result;
 }
 
-export const collectAllIdsFromPage = addFileCache(async (page: FoundPageFetchResult["data"]) => {
+export const getInterestingPageElements = addFileCache(async (page: FoundPageFetchResult["data"]) => {
 	const dom = new JSDOM(await fs.readFile(page.path, "utf8"));
-	return [...dom.window.document.querySelectorAll("*[id]")].map((elem) => ({
+	const ids = [...dom.window.document.querySelectorAll("*[id]")].map((elem) => ({
 		outerHTML: elem.outerHTML,
 		id: elem.id,
 		selector: getElementLocation(elem),
 	}));
-}, {calcCacheKey: (page) => ["collectAllIdsFromPage_2", page.path, page.mtime]});
-
-export const findAllTagsInHTML = addFileCache(async (tagName: string, page: FoundPageFetchResult["data"]) => {
-	const dom = new JSDOM(await fs.readFile(page.path, "utf8"));
-	return [...dom.window.document.querySelectorAll(tagName)]
-	.map((tag) => ({
-		attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)! as string | undefined])),
-		outerHTML: tag.outerHTML,
-		selector: getElementLocation(tag),
-	}));
-},{calcCacheKey: (tagName, page) => ["findAllTagsInHTML_1", tagName, page.path, page.mtime]});
+	const elementsWithTageName = (tagName: string) => {
+		return [...dom.window.document.querySelectorAll(tagName)]
+		.map((tag) => ({
+			attrs: Object.fromEntries(tag.getAttributeNames().map((name) => [name, tag.getAttribute(name)! as string | undefined])),
+			outerHTML: tag.outerHTML,
+			selector: getElementLocation(tag),
+			innerHTML: tag.innerHTML,
+		}));
+	}
+	return {
+		ids,
+		tagCollections: {
+			img: elementsWithTageName("img"),
+			link: elementsWithTageName("link"),
+			meta: elementsWithTageName("meta"),
+			script: elementsWithTageName("script"),
+		}
+	}
+}, {calcCacheKey: (page) => ["getInterestingPageElements_1", page.path, page.mtime]});
 
 export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"], type: "html" | "css" | "svg") => {
 	const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", data.path]);
