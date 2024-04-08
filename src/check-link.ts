@@ -63,7 +63,7 @@ export const checkLink = (baseUrl: string, indexName: string) => async (link: {u
 			})();
 			const assertErrors = link.asserts.flatMap((assert): ValidationResultType[] => {
 				if (assert.type === "content-type") {
-					const contentType = Object.entries(target.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+					const contentType = Object.entries(target.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1].split(";")[0];
 					if (!contentType || !assert.contentType.includes(contentType)) {
 						return [{
 							type: "CONTENT_TYPE_MISMATCH",

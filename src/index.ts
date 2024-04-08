@@ -59,7 +59,7 @@ export const toCanonical = (baseUrl: string, indexName: string) => (url: string)
 		return url;
 	}else {
 		const resolvedPathName = urlObj.pathname.endsWith("/") ? urlObj.pathname + indexName : urlObj.pathname;
-		return urlObj.origin + resolvedPathName + urlObj.search;
+		return urlObj.origin + resolvedPathName;
 	}
 }
 

@@ -114,9 +114,11 @@ describe("config", () => {
 		<title>title</title>
 		<link href="/rss.xml" rel="alternate" type="application/rss+xml">
 		<link href="/rss-xml.xml" rel="alternate" type="application/rss+xml">
+		<link href="/rss-with-charset.xml" rel="alternate" type="application/rss+xml">
 		<link href="/rss-${failId1}.xml" rel="alternate" type="application/rss+xml">
 		<link href="/atom.xml" rel="alternate" type="application/atom+xml">
 		<link href="/atom-xml.xml" rel="alternate" type="application/atom+xml">
+		<link href="/atom-with-charset.xml" rel="alternate" type="application/atom+xml">
 		<link href="/atom-${failId2}.xml" rel="alternate" type="application/atom+xml">
 	</head>
 	<body>
@@ -130,6 +132,9 @@ describe("config", () => {
 					filename: `rss-xml.xml`,
 					contents: rssContents,
 				}, {
+					filename: `rss-with-charset.xml`,
+					contents: rssContents,
+				}, {
 					filename: `rss-${failId1}.xml`,
 					contents: rssContents,
 				}, {
@@ -139,6 +144,9 @@ describe("config", () => {
 					filename: `atom-xml.xml`,
 					contents: atomContents,
 				}, {
+					filename: `atom-with-charset.xml`,
+					contents: atomContents,
+				}, {
 					filename: `atom-${failId2}.xml`,
 					contents: atomContents,
 				},
@@ -146,6 +154,10 @@ describe("config", () => {
 				const contentType = (() => {
 					if (path.includes("rss.xml")) {
 						return "application/rss+xml";
+					}else if (path.includes("rss-with-charset.xml")) {
+						return "application/rss+xml; charset=utf-8";
+					}else if (path.includes("atom-with-charset.xml")) {
+						return "application/atom+xml; charset=utf-8";
 					}else if (path.includes("atom.xml")) {
 						return "application/atom+xml";
 					}else if (path.includes("rss-xml.xml") || path.includes("atom-xml.xml")) {

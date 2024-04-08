@@ -25,6 +25,7 @@ describe("links", () => {
 		<a href="#good">link2</a>
 		<a href="https://example.com#good">link3</a>
 		<a href="https://example.com/#good">link4</a>
+		<a href="https://example.com/?query=param#good">link4</a>
 		<!-- these links are bad as they point to a nonexistent element -->
 		<a href="#${nextFailId()}">link5</a>
 		<a href="https://example.com/#${nextFailId()}">link6</a>
