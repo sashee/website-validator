@@ -13,6 +13,7 @@ import vnu from "vnu-jar";
 import epubchecker from "epubchecker";
 import muhammara from "muhammara";
 import sharp from "sharp";
+import {DeepReadonly} from "ts-essentials";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -148,14 +149,36 @@ export const getInterestingPageElements = addFileCache(async (page: FoundPageFet
 	}
 }, {calcCacheKey: (page) => ["getInterestingPageElements_2", page.path, page.mtime]});
 
-export const vnuValidate = addFileCache(async (data: FoundPageFetchResult["data"], type: "html" | "css" | "svg") => {
-	const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", data.path]);
-	const out = JSON.parse(stdout) as VnuResult;
-	if (out.messages.some(({type}) => type === "non-document-error")) {
-		throw new Error(JSON.stringify(out.messages, undefined, 4));
-	}
-	return out.messages as VnuReportedError[];
-}, {calcCacheKey: (data, type) => ["vnuValidate_1", data.path, data.mtime, type]});
+export const vnuValidates = async (files: DeepReadonly<Array<{data: FoundPageFetchResult["data"], type: "html" | "css" | "svg"}>>) => {
+	const byType = files.reduce((memo, file) => {
+		if (memo[file.type]) {
+			memo[file.type].push(file.data);
+			return memo;
+		}else {
+			memo[file.type] = [file.data];
+			return memo;
+		}
+	}, {} as {[type: string]: Array<(typeof files)[number]["data"]>});
+
+	return (await Promise.all(Object.entries(byType).map(async ([type, datas]) => {
+		// TODO: streaming result
+		const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", ...datas.map(({path}) => path)], {maxBuffer: 100*1024*1024});
+		const out = JSON.parse(stdout) as VnuResult;
+		if (out.messages.some(({type}) => type === "non-document-error")) {
+			throw new Error(JSON.stringify(out.messages, undefined, 4));
+		}
+		return out.messages as (VnuReportedError & {url: string})[];
+	}))).flat(1) .reduce((memo, message) => {
+		assert(message.url.startsWith("file:"));
+		const absolutePath = message.url.substring("file:".length);
+		if (memo[absolutePath]) {
+			memo[absolutePath].push(message);
+			return memo;
+		}else {
+			throw new Error("Result path is not in files path");
+		}
+	}, Object.fromEntries(files.map(({data}) => [data.path, []])) as {[url: string]: VnuReportedError[]});
+};
 
 export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data"]) => {
 	return (await epubchecker(data.path)).messages as EpubcheckError[];

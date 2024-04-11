@@ -10,7 +10,7 @@ import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import debug from "debug";
-import { getInterestingPageElements } from "./utils.js";
+import { getInterestingPageElements, vnuValidates } from "./utils.js";
 
 export const log = debug("website-validator");
 
@@ -525,7 +525,30 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			})(),
 			(async () => {
 				// file errors
-				return (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]) => {
+				const vnuCheckFiles = Object.entries(files).flatMap(([, {res}]): Parameters<typeof vnuValidates>[0] => {
+					const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
+					if (res.data !== null && contentType === "text/html") {
+						return [{
+							type: "html",
+							data: res.data,
+						}];
+					} else if (res.data !== null && contentType === "text/css") {
+						return [{
+							type: "css",
+							data: res.data,
+						}];
+					} else if (res.data !== null && contentType === "image/svg+xml") {
+						return [{
+							type: "svg",
+							data: res.data,
+						}];
+					}else {
+						return [];
+					}
+				});
+				const vnuValidationResults = await vnuValidates(vnuCheckFiles);
+
+				return (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]): Promise<ValidationResultType[]> => {
 					if (res.data !== null) {
 						assert(links);
 						const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
@@ -534,7 +557,8 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 
 							return [toCanonical(baseUrl, indexName)(url), target] as const;
 						}));
-						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles});
+						const vnuResults = vnuValidationResults[res.data.path];
+						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles, vnuResults});
 					}else {
 						return [];
 					}
