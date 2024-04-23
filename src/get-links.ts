@@ -5,7 +5,7 @@ import xml2js from "xml2js";
 import jmespath from "jmespath";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {extractAllUrlsFromCss, getElementLocation, getInterestingPageElements} from "./utils.js";
+import {extractAllUrlsFromCss, getInterestingPageElements} from "./utils.js";
 import {DeepReadonly} from "ts-essentials";
 
 export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") => {
@@ -91,29 +91,29 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 					return {
 						role: {type: "stylesheet"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
+						location: {type: "html", url, element: {outerHTML: link.outerHTML, selector: link.selector, tagName: "link"}},
 					} as const;
 				}else if (link.attrs["rel"] === "alternate" && link.attrs["type"] === "application/atom+xml") {
 					return {
 						role: {type: "atom"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
+						location: {type: "html", url, element: {outerHTML: link.outerHTML, selector: link.selector, tagName: "link"}},
 					} as const;
 				}else if (link.attrs["rel"] === "alternate" && link.attrs["type"] === "application/rss+xml") {
 					return {
 						role: {type: "rss"},
 						asserts: [],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
+						location: {type: "html", url, element: {outerHTML: link.outerHTML, selector: link.selector, tagName: "link"}},
 					} as const;
 				}else if (link.attrs["rel"] === "icon" && link.attrs["sizes"]?.split(" ").length === 1) {
 					const {width, height} = link.attrs["sizes"].split(" ")[0]!.toLowerCase().match(/^(?<width>\d+)x(?<height>\d+)$/)!.groups!;
 					return {
 						role: {type: "asset"},
 						asserts: [{type: "image"}, {type: "imageSize", width: Number(width), height: Number(height)}],
-						location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}},
+						location: {type: "html", url, element: {outerHTML: link.outerHTML, selector: link.selector, tagName: "link"}},
 					} as const;
 				}else {
-					return {role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: link.outerHTML, selector: link.selector}}} as const;
+					return {role: {type: "asset"}, asserts: [], location: {type: "html", url, element: {outerHTML: link.outerHTML, selector: link.selector, tagName: "link"}}} as const;
 				}
 			})();
 			const contentTypeAssertions = (() => {
@@ -133,26 +133,26 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 			return result;
 		});
 		const scriptAssets = pageElements.tagCollections.script.filter((script) => script.attrs["src"]).map((script) => {
-			return {url: new URL(script.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: script.outerHTML, selector: script.selector}}} as const;
+			return {url: new URL(script.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", url, element: {outerHTML: script.outerHTML, selector: script.selector, tagName: "script"}}} as const;
 		});
 		const ogImages = pageElements.tagCollections.meta.filter((meta) => meta.attrs["property"] === "og:image" && meta.attrs["content"]).map((ogImage) => {
-			return {url: new URL(ogImage.attrs["content"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}, {type: "permanent"}], location: {type: "html", element: {outerHTML: ogImage.outerHTML, selector: ogImage.selector}}} as const;
+			return {url: new URL(ogImage.attrs["content"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}, {type: "permanent"}], location: {type: "html", url, element: {outerHTML: ogImage.outerHTML, selector: ogImage.selector, tagName: "meta"}}} as const;
 		});
 		const imgSrcAssets = pageElements.tagCollections.img.filter((img) => img.attrs["src"]).map((img) => {
-			return {url: new URL(img.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: img.selector}}} as const;
+			return {url: new URL(img.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", url, element: {outerHTML: img.outerHTML, selector: img.selector, tagName: "img"}}} as const;
 		});
 		const imgSrcsetAssets = pageElements.tagCollections.img.filter((img) => img.attrs["srcset"]).map((img) => {
 			const parsed = parseSrcset(img.attrs["srcset"]!);
-			return parsed.map((srcset) => ({url: new URL(srcset.url, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: img.outerHTML, selector: img.selector}}} as const));
+			return parsed.map((srcset) => ({url: new URL(srcset.url, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", url, element: {outerHTML: img.outerHTML, selector: img.selector, tagName: "img"}}} as const));
 		}).flat();
 		const videoSrcAssets = pageElements.tagCollections.video.filter((video) => video.attrs["src"]).map((video) => {
-			return {url: new URL(video.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "video"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: video.selector}}} as const;
+			return {url: new URL(video.attrs["src"]!, url).href, role: {type: "asset"}, asserts: [{type: "video"}], location: {type: "html", url, element: {outerHTML: video.outerHTML, selector: video.selector, tagName: "video"}}} as const;
 		});
 		const videoPosterAssets = pageElements.tagCollections.video.filter((video) => video.attrs["poster"]).map((video) => {
-			return {url: new URL(video.attrs["poster"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", element: {outerHTML: video.outerHTML, selector: video.selector}}} as const;
+			return {url: new URL(video.attrs["poster"]!, url).href, role: {type: "asset"}, asserts: [{type: "image"}], location: {type: "html", url, element: {outerHTML: video.outerHTML, selector: video.selector, tagName: "video"}}} as const;
 		});
 		const links = pageElements.tagCollections.a.filter((a) => a.attrs["href"]).map((anchor) => {
-			return {url: new URL(anchor.attrs["href"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: anchor.outerHTML, selector: anchor.selector}}} as const;
+			return {url: new URL(anchor.attrs["href"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", url, element: {outerHTML: anchor.outerHTML, selector: anchor.selector, tagName: "a"}}} as const;
 		});
 		return [...linkAssets, ...scriptAssets, ...ogImages, ...imgSrcAssets, ...imgSrcsetAssets, ...links, ...videoSrcAssets, ...videoPosterAssets];
 	}else if (contentType === "text/css") {
@@ -165,10 +165,10 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 					return {
 						role: {type: "asset"},
 						asserts: [{type: "font"}],
-						location: {type: "css", position, target: url}
+						location: {type: "css", url: pageUrl, position, target: url}
 					} as const;
 				}else {
-					return {role: {type: "asset"}, asserts: [], location: {type: "css", position, target: url}} as const;
+					return {role: {type: "asset"}, asserts: [], location: {type: "css", url: pageUrl, position, target: url}} as const;
 				}
 			})();
 			return {url: new URL(url, pageUrl).href, role, asserts: asserts, location};

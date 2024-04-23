@@ -9,13 +9,21 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 it.skip("html error", async () => {
  try{
 	const extras = {};
-	const res = await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
+	const res = (await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
 		{url: "/", role: {type: "document"}},
 		{url: "/robots.txt", role: {type: "robotstxt"}},
 		{url: "/rss-sashee.xml", role: {type: "rss"}},
 		{url: "/promos.json", role: {type: "json", extractConfigs: [{jmespath: "promos[*].url", asserts: [], role: {type: "document"}}, {jmespath: "promos[*].image", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}]}},
 		{url: "/flashback.json", role: {type: "json", extractConfigs: [{jmespath: "[*].[image, \"small-image\"][]", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}, {jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
-	], extras);
+	], extras)).filter((obj) => {
+			// we don't care about img alts
+			return (obj.type !== "VNU" || !obj.object.message.includes("An “img” element must have an “alt” attribute, except under certain conditions. For details, consult guidance on providing text alternatives for images.")) &&
+				// ignore CSS errors, bootstrap apparently does not compile to compliant css
+				(obj.type !== "VNU" || !obj.location.url.endsWith(".css")) &&
+				// ignore current page reloads in the header and the footer
+				(obj.type !== "LINK_RELOADS_CURRENT_PAGE" || obj.location.location.type !== "html" || !(obj.location.location.element.selector.includes("header") || obj.location.location.element.selector.includes("footer")))
+			;
+		});
 	console.log(JSON.stringify(res, undefined, 4));
  }catch(e) {
 	 console.error(e);

@@ -224,6 +224,49 @@ describe("links", () => {
 			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "css" && error.location.location.target.includes(failId)), `Should have an error but did not: ${index}`);
 		});
 	});
+	it("reports links that reload the current page", async () => {
+		const {nextFailId, getFailIds} = initFailIds();
+		const errors = await setupTestFiles([
+			{
+				filename: "index.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		<a href="https://example.com/abc.html">good</a>
+		<a href="https://example.com/">${nextFailId()}</a>
+		<a href="https://example.com/index.html">${nextFailId()}</a>
+		<a href="https://example.com/#">good2</a>
+	</body>
+</html>
+				`
+			},
+			{
+				filename: "abc.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		<h2 id="a">heading</h2>
+		<a href="https://example.com/abc.html">${nextFailId()}</a>
+		<a href="https://example.com/abc.html#a">good2</a>
+	</body>
+</html>
+				`
+			},
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		const failIds = getFailIds();
+		assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
+		failIds.forEach((failId, index) => {
+			assert(errors.some((error) => error.type === "LINK_RELOADS_CURRENT_PAGE" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
+		});
+	});
 });
 
 describe("extra links", () => {

@@ -144,9 +144,11 @@ export type VnuResult = {
 
 export type LinkLocation = {
 	type: "html",
+	url: string,
 	element: {
 		outerHTML: string,
 		selector: string,
+		tagName: string,
 	},
 } | {
 	type: "robotssitemap",
@@ -185,6 +187,7 @@ export type LinkLocation = {
 	index: number,
 } | {
 	type: "css",
+	url: string,
 	position: string,
 	target: string,
 } | {
@@ -241,6 +244,13 @@ type LinkError = {
 		url: string,
 		location: LinkLocation,
 	}
+} | {
+	// link reloads the current page
+	type: "LINK_RELOADS_CURRENT_PAGE",
+	location: {
+		url: string,
+		location: LinkLocation,
+	},
 }
 
 type NotFoundError = {
