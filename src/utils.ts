@@ -55,7 +55,12 @@ export const getElementLocation = (element: Element) => {
 		if (e.parentElement === null) {
 			return e.tagName.toLowerCase();
 		}else {
-			return `${e.tagName.toLowerCase()}:nth-of-type(${[...e.parentElement.children].filter((elem) => elem.tagName === e.tagName).indexOf(e) + 1})`;
+			function getElIndex(el: Element | null) {
+				let i = 0;
+				for (i = 0; el = el!.previousElementSibling; i++);
+				return i;
+			}
+			return `${e.tagName.toLowerCase()}:nth-child(${getElIndex(e) + 1})`;
 		}
 	}).join(" > ")} - ${element.outerHTML}`;
 }

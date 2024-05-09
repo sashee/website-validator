@@ -2,7 +2,7 @@ import {it} from "node:test";
 import path from "node:path";
 import {validate, compareVersions} from "../index.js";
 import url from "node:url";
-import {DeepReadonly} from "ts-essentials";
+import assert from "node:assert/strict";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
@@ -16,6 +16,58 @@ it.skip("html error", async () => {
 		{url: "/promos.json", role: {type: "json", extractConfigs: [{jmespath: "promos[*].url", asserts: [], role: {type: "document"}}, {jmespath: "promos[*].image", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}]}},
 		{url: "/flashback.json", role: {type: "json", extractConfigs: [{jmespath: "[*].[image, \"small-image\"][]", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}, {jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
 	], extras);
+	console.log(JSON.stringify(res, undefined, 4));
+ }catch(e) {
+	 console.error(e);
+	 throw e;
+ }
+});
+
+const mimeTypeMapping = 
+[
+	{"test": "^/?(_code|_members/_code)", "contentType": "text/html"},
+	{"test": "^/?rss.xml$", "contentType": "application/rss+xml; charset=utf-8"},
+	{"test": "^/?atom.xml$", "contentType": "application/atom+xml; charset=utf-8"},
+	{"test": ".*\\.html$", "contentType": "text/html"},
+	{"test": ".*\\.js$", "contentType": "application/javascript"},
+	{"test": ".*\\.css$", "contentType": "text/css"},
+	{"test": ".*\\.txt$", "contentType": "text/plain"},
+	{"test": ".*\\.png$", "contentType": "image/png"},
+	{"test": ".*\\.jpg$", "contentType": "image/jpeg"},
+	{"test": ".*\\.jpeg$", "contentType": "image/jpeg"},
+	{"test": ".*\\.svg$", "contentType": "image/svg+xml"},
+	{"test": ".*\\.epub$", "contentType": "application/epub+zip"},
+	{"test": ".*\\.pdf$", "contentType": "application/pdf"},
+	{"test": ".*\\.zip$", "contentType": "application/zip"},
+	{"test": ".*\\.mp4$", "contentType": "video/mp4"},
+	{"test": ".*\\.ico$", "contentType": "image/x-icon"},
+	{"test": ".*/$", "contentType": "text/html"},
+	{"test": "^$",  "contentType": "text/html"}
+];
+
+it.only("book", async () => {
+ try{
+	const fetchBases = [
+		{url: "/", role: {type: "document"}},
+		{url: "/_members/_portal/", role: {type: "document"}},
+		{url: "/robots.txt", role: {type: "robotstxt"}},
+	] as const;
+
+	const extras = {};
+	const baseConfig = {
+		indexName: "__index__.html",
+		responseMeta: (path: string) => {
+			const contentType = mimeTypeMapping.find(({test}) => path.match(new RegExp(test)) !== null)?.contentType;
+			assert(contentType);
+
+			return {
+				status: 200,
+				headers: {"Content-Type": contentType}
+			};
+		},
+	}
+
+	const res = await validate({concurrency: 1})("https://www.s3-cloudfront-signed-urls-book.com", {dir: path.join(__dirname, "..", "..", "..", "signed-urls-book", "dist"), ...baseConfig})(fetchBases, extras);
 	console.log(JSON.stringify(res, undefined, 4));
  }catch(e) {
 	 console.error(e);
