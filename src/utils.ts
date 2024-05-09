@@ -194,7 +194,7 @@ export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"
 		return [e.message];
 	}
 	return [];
-}, {calcCacheKey: (data) => ["validatepdf_1", new Date().getTime(), data.path, data.mtime]});
+}, {calcCacheKey: (data) => ["validatepdf_1", data.path, data.mtime]});
 
 export const getImageDimensions = addFileCache(async (data: FoundPageFetchResult["data"]) => {
 	const metadata = await sharp(await fs.readFile(data.path)).metadata();
@@ -202,4 +202,4 @@ export const getImageDimensions = addFileCache(async (data: FoundPageFetchResult
 		width: metadata.width,
 		height: metadata.height,
 	};
-}, {calcCacheKey: (data) => ["getImageDimensions_1", new Date().getTime(), data.path, data.mtime]});
+}, {calcCacheKey: (data) => ["getImageDimensions_1", data.path, data.mtime]});
