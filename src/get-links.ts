@@ -1,4 +1,4 @@
-import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect} from "./index.js";
+import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect, isInternalLink} from "./index.js";
 import {parseSrcset} from "srcset";
 import robotsParser from "robots-parser";
 import xml2js from "xml2js";
@@ -154,7 +154,36 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 		const links = pageElements.tagCollections.a.filter((a) => a.attrs["href"]).map((anchor) => {
 			return {url: new URL(anchor.attrs["href"]!, url).href, role: {type: "asset"}, asserts: [], location: {type: "html", element: {outerHTML: anchor.outerHTML, selector: anchor.selector}}} as const;
 		});
-		return [...linkAssets, ...scriptAssets, ...ogImages, ...imgSrcAssets, ...imgSrcsetAssets, ...links, ...videoSrcAssets, ...videoPosterAssets];
+		const inJsonLd = pageElements.tagCollections.script.filter((script) => script.attrs["type"] === "application/ld+json").flatMap((script) => {
+			try {
+				const parsed = JSON.parse(script.innerHTML);
+				const getLinksRecursive = (node: any): string[] => {
+					if (typeof node === "string") {
+						if (URL.canParse(node)) {
+							return [node];
+						}else {
+							return [];
+						}
+					}else if (Array.isArray(node)) {
+						return node.flatMap(getLinksRecursive);
+					}else if (typeof node === "object") {
+						return Object.values(node).flatMap(getLinksRecursive);
+					}else {
+						return [];
+					}
+				};
+				return getLinksRecursive(parsed).map((link) => ({
+					url: link,
+					role: {type: "asset"},
+					asserts: [],
+					location: {type: "html", element: {outerHTML: script.outerHTML, selector: script.selector}}
+				} as const));
+			}catch(e) {
+				// JSON/LD is validated separately, no need to throw here
+				return [];
+			}
+		});
+		return [...linkAssets, ...scriptAssets, ...ogImages, ...imgSrcAssets, ...imgSrcsetAssets, ...links, ...videoSrcAssets, ...videoPosterAssets, ...inJsonLd];
 	}else if (contentType === "text/css") {
 		const contents = await fs.readFile(res.data.path);
 		const allUrls = await extractAllUrlsFromCss(contents.toString("utf8"));

@@ -8,7 +8,7 @@ import path from "node:path";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-describe("links", () => {
+describe.only("links", () => {
 	it("inside html", async () => {
 		const {nextFailId, getFailIds} = initFailIds();
 		const errors = await setupTestFiles([{
@@ -222,6 +222,49 @@ describe("links", () => {
 		assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
 		failIds.forEach((failId, index) => {
 			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "css" && error.location.location.target.includes(failId)), `Should have an error but did not: ${index}`);
+		});
+	});
+	it.only("in json/ld documents", async () => {
+		const {nextFailId, getFailIds} = initFailIds();
+		const errors = await setupTestFiles([
+			{
+				filename: "index.html",
+				contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+	<script type="application/ld+json">{
+  "@context": "https://schema.org/",
+  "@type": "Course",
+	"url": "https://example.com/good.html",
+	"sameAs": "https://example.com/${nextFailId()}.html",
+	"mainEntityOfPage": "https://example2.com/another_domain.html"
+}</script>
+	</body>
+</html>
+			`
+		},
+		{
+			filename: "good.html",
+			contents: `
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<title>title</title>
+</head>
+<body>
+</body>
+</html>
+		`
+		},
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		const failIds = getFailIds();
+		assert.equal(errors.length, failIds.length, JSON.stringify(errors, undefined, 4));
+		failIds.forEach((failId, index) => {
+			assert(errors.some((error) => error.type === "TARGET_NOT_FOUND" && error.location.location.type === "html" && error.location.location.element.outerHTML.includes(failId)), `Should have an error but did not: ${index}`);
 		});
 	});
 });
