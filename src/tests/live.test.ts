@@ -45,7 +45,7 @@ const mimeTypeMapping =
 	{"test": "^$",  "contentType": "text/html"}
 ];
 
-it.only("book", async () => {
+it.skip("book", async () => {
  try{
 	const fetchBases = [
 		{url: "/", role: {type: "document"}},

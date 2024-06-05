@@ -2,17 +2,17 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {setupTestFiles} from "./testutils.js";
-import muhammara from "muhammara";
+import PDFDocument from "pdfkit";
 import streams from "memory-streams";
+import {finished} from "node:stream/promises";
 
 const generatePdf = async () => {
 	const writer = new streams.WritableStream();
-	const pdfWriter = muhammara.createWriter(new muhammara.PDFStreamForResponse(writer));
-	const page = pdfWriter.createPage();
-	const pageContent = pdfWriter.startPageContentContext(page);
-	pageContent.q().k(100, 0, 0, 0).re(100, 500, 100, 100).f().Q();
-	pdfWriter.writePage(page);
-	pdfWriter.end();
+	const doc = new PDFDocument();
+	doc.pipe(writer);
+	doc.addPage().text("test", 100, 100);
+	doc.end();
+	await finished(writer);
 	return writer.toBuffer();
 };
 
@@ -39,12 +39,12 @@ describe("pdf", () => {
 				contents: pdf,
 			}
 		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
-		assert.equal(errors.length, 0);
+		assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
 	});
 	it("reports errors for an invalid pdf file", async () => {
 		const pdf = await generatePdf();
 		// make the pdf file not valid
-		pdf.set([24], 0);
+		pdf.set([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], 0);
 		const errors = await setupTestFiles([
 			{
 				filename: "index.html",

@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@types/debug": "^4.1.12",
+    "@types/pdfkit": "^0.13.4",
     "@types/vnu-jar": "^17.11.2",
     "debug": "^4.3.4",
     "epubchecker": "^5.1.0",
@@ -45,7 +46,8 @@
     "jmespath": "^0.16.0",
     "jsdom": "^24.0.0",
     "mime": "^4.0.1",
-    "muhammara": "^4.1.0",
+    "pdfjs-dist": "^4.3.136",
+    "pdfkit": "^0.15.0",
     "postcss": "^8.4.38",
     "robots-parser": "^3.0.1",
     "rxjs": "^7.8.1",

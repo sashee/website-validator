@@ -11,9 +11,9 @@ import {execFile} from "node:child_process";
 import util from "node:util";
 import vnu from "vnu-jar";
 import epubchecker from "epubchecker";
-import muhammara from "muhammara";
 import sharp from "sharp";
 import {DeepReadonly} from "ts-essentials";
+import {getDocument} from "pdfjs-dist";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -192,9 +192,9 @@ export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data
 export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"]) => {
 	const pdf = await fs.readFile(data.path);
 	try {
-		const pdfReader = muhammara.createReader(new muhammara.PDFRStreamForBuffer(pdf));
-		pdfReader.parsePage(0);
-		pdfReader.getPagesCount();
+		const document = await getDocument({data: new Uint8Array(pdf, pdf.byteOffset, pdf.byteLength), stopAtErrors: true}).promise;
+		const page = await document.getPage(1);
+		await page.getTextContent();
 	}catch(e: any) {
 		return [e.message];
 	}
