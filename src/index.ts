@@ -11,14 +11,6 @@ import xml2js from "xml2js";
 import debug from "debug";
 import { getInterestingPageElements, vnuValidates } from "./utils.js";
 
-(Promise as any).withResolvers || ((Promise as any).withResolvers = function withResolvers() {
-  var a, b, c = new this(function (resolve: any, reject: any) {
-    a = resolve;
-    b = reject;
-  });
-  return {resolve: a, reject: b, promise: c};
-});
-
 export const log = debug("website-validator");
 
 export type FileFetchResult = {
