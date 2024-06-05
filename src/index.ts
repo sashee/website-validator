@@ -3,7 +3,6 @@ import {deepEqual} from "fast-equals";
 import fs from "node:fs/promises";
 import mime from "mime";
 import { strict as assert } from "node:assert";
-import url from "url";
 import {getUrlsFromSitemap} from "./get-links.js";
 import {recursiveFetchFiles} from "./fetch-files.js";
 import {DeepReadonly} from "ts-essentials";
@@ -11,6 +10,14 @@ import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import debug from "debug";
 import { getInterestingPageElements, vnuValidates } from "./utils.js";
+
+(Promise as any).withResolvers || ((Promise as any).withResolvers = function withResolvers() {
+  var a, b, c = new this(function (resolve: any, reject: any) {
+    a = resolve;
+    b = reject;
+  });
+  return {resolve: a, reject: b, promise: c};
+});
 
 export const log = debug("website-validator");
 
@@ -66,6 +73,7 @@ export const toCanonical = (baseUrl: string, indexName: string) => (url: string)
 export const isInternalLink = (baseUrl: string) => (url: string) => {
 	return new URL(url, baseUrl).origin === baseUrl;
 }
+
 const toRelativeUrl = (baseUrl: string) => (url: string) => {
 	const urlObj = new URL(url, baseUrl);
 	return urlObj.pathname + urlObj.search;
