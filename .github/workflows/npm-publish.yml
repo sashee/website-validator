@@ -25,7 +25,7 @@ jobs:
       - run: npm ci
       - run: npm test
         env:
-          NODE_DEBUG: '*'
+          NODE_DEBUG: 'website-validator*'
 
   publish-npm:
     needs: build

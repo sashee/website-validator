@@ -14,7 +14,7 @@
   "repository": "github:sashee/website-validator",
   "scripts": {
     "test": "npm run build && node --test --enable-source-maps dist/**/*.test.js",
-    "test_dev": "npm run build && NODE_DEBUG=* node --test --test-only --enable-source-maps --inspect dist/**/*.test.js",
+    "test_dev": "npm run build && NODE_DEBUG=website-validator* node --test --test-only --enable-source-maps --inspect dist/**/*.test.js",
     "build": "tsc --build && npm run copy_static_files",
     "clean": "tsc --build --clean",
     "prepare": "npm run clean && npm run build",
