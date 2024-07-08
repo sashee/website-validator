@@ -5,9 +5,9 @@ import {getLinks as getLinksOrig} from "./get-links.js";
 import { Pool } from "./worker-runner.js";
 import {implementWorker} from "with-worker-threads";
 import {checkLink as checkLinkOrig} from "./check-link.js";
-import debug from "debug";
+import {debuglog} from "node:util";
 
-const log = debug("website-validator:worker");
+const log = debuglog("website-validator:worker");
 
 export const validateFile = async ({baseUrl, indexName, url, res, roles, linkedFiles, vnuResults}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[]}) => {
 	const startTime = new Date().getTime();

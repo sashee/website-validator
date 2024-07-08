@@ -8,10 +8,10 @@ import {recursiveFetchFiles} from "./fetch-files.js";
 import {DeepReadonly} from "ts-essentials";
 import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
-import debug from "debug";
 import { getInterestingPageElements, vnuValidates } from "./utils.js";
+import {debuglog} from "node:util";
 
-export const log = debug("website-validator");
+export const log = debuglog("website-validator");
 
 export type FileFetchResult = {
 	url: string,

@@ -2,7 +2,6 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {initFailIds, setupTestFiles} from "./testutils.js";
-import debug from "debug";
 
 describe("config", () => {
 	describe("indexName", () => {
