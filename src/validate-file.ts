@@ -357,8 +357,54 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 						return [];
 					}
 				}else if (additionalValidator.type === "json-ld") {
-					// TODO: implement
-					return [];
+					const allJSONLDs = (await getInterestingPageElements(res.data)).tagCollections.script.filter(({attrs}) => attrs["type"] === "application/ld+json");
+					const allParsedJsonLd = allJSONLDs.flatMap((jsonLd) => {
+						try {
+							return [JSON.parse(jsonLd.innerHTML)];
+						}catch(e) {
+							return [];
+						}
+					});
+					const validate = ajv.compile(additionalValidator.filter);
+					const matchedJsonLds = allParsedJsonLd.filter((jsonLd) => {
+						return validate(jsonLd) === true;
+					});
+					return (await Promise.all([
+						(async () => {
+							const schema = additionalValidator.schema;
+							if (schema !== undefined) {
+								return (await Promise.all(matchedJsonLds.map(async (matchedJsonLd) => {
+									const validate = ajv.compile(schema);
+									const validationResult = await validate(matchedJsonLd);
+									if (!validationResult) {
+										return validate.errors!.map((obj) => ({
+											type: "JSON_LD_DOES_NOT_MATCH_SCHEMA",
+											filter: additionalValidator.filter,
+											result: obj,
+											schema,
+										} as const));
+									}else {
+										return [];
+									}
+								}))).flat(1);
+							}else {
+								return [];
+							}
+						})(),
+						(async () => {
+							if (matchedJsonLds.length >= (additionalValidator.minOccurrence ?? 0) && matchedJsonLds.length <= (additionalValidator.maxOccurrence ?? Number.MAX_SAFE_INTEGER)) {
+								return [];
+							}else {
+								return [{
+									type: "JSON_LD_DOES_NOT_MATCH_OCCURRENCE_REQUIREMENT",
+									filter: additionalValidator.filter,
+									minOccurrence: additionalValidator.minOccurrence,
+									maxOccurrence: additionalValidator.maxOccurrence,
+									actualOccurrence: matchedJsonLds.length,
+								}] as const;
+							}
+						})(),
+					])).flat(1);
 				}else {
 					return [];
 				}

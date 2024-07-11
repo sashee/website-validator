@@ -72,3 +72,177 @@ describe("json", () => {
 		});
 	});
 });
+
+describe("json/ld", () => {
+	const htmlWithJsonLds = (jsonLds: string[]) => {
+		return `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+${jsonLds.map((jsonLd) => `
+<script type="application/ld+json">
+${jsonLd}
+</script>
+							`)}
+	</body>
+</html>
+`;
+	}
+
+	describe("minOccurrence", () => {
+		it("works when the validation passes", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					minOccurrence: 1,
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+		});
+		it("works when the validation fails", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					minOccurrence: 2,
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+			assert.equal(errors[0].type, "JSON_LD_DOES_NOT_MATCH_OCCURRENCE_REQUIREMENT", JSON.stringify(errors, undefined, 4));
+		});
+	});
+	describe("maxOccurrence", () => {
+		it("works when the validation passes", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					maxOccurrence: 2,
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"}), JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+		});
+		it("works when the validation fails", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					maxOccurrence: 1,
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"}), JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+			assert.equal(errors[0].type, "JSON_LD_DOES_NOT_MATCH_OCCURRENCE_REQUIREMENT", JSON.stringify(errors, undefined, 4));
+		});
+	});
+	describe("schema", () => {
+		it("works when the validation passes", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					schema: {
+						type: "object",
+						properties: {
+							name: {type: "string"},
+						},
+						required: ["name"],
+					}
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting", name: "test"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+		});
+		it("works when the validation fails", async () => {
+			const additionalValidators = [{
+				urlPattern: /test.html/,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					schema: {
+						type: "object",
+						properties: {
+							name: {type: "string"},
+						},
+						required: ["name"],
+					}
+				}
+			}] as const;
+			const errors = await setupTestFiles([
+				{
+					filename: "test.html",
+					contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting", description: "test"})]),
+				},
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/test.html", role: {type: "document"}}], {}, additionalValidators));
+			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+			assert.equal(errors[0].type, "JSON_LD_DOES_NOT_MATCH_SCHEMA", JSON.stringify(errors, undefined, 4));
+		});
+	});
+});

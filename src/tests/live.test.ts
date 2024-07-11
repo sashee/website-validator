@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-it.skip("html error", async () => {
+it("html error", async () => {
  try{
 	const extras = {};
 	const additionalValidators = [
@@ -51,11 +51,73 @@ it.skip("html error", async () => {
 							datePublished: {type: "string", format: "date"},
 							dateModified: {type: "string", format: "date"},
 						},
-						"required": ["url", "title", "datePublished", "dateModified"],
+						required: ["url", "title", "datePublished", "dateModified"],
 					}
 				}
 			}
-		}
+		},
+		{
+			urlPattern: /books_courses.html$/,
+			config: {
+				type: "json-ld",
+				filter: {
+					type: "object",
+					properties: {
+						"@type": {enum: ["Book", "Course"]},
+					},
+				},
+				schema: {
+					type: "object",
+					properties: {
+						url: {type: "string", format: "uri"},
+						"@id": {type: "string"},
+					},
+					required: ["url", "@id"],
+				}
+			}
+		},
+		{
+			urlPattern: /books_courses.html$/,
+			config: {
+				type: "json-ld",
+				filter: {
+					type: "object",
+					properties: {
+						"@type": {const: "ProductCollection"},
+					},
+				},
+				schema: {
+					type: "object",
+					properties: {
+						name: {type: "string"},
+						includesObject: {
+							type: "array",
+							items: {
+								type: "object",
+								properties: {
+									identifier: {type: "string"}
+								},
+								required: ["identifier"],
+							},
+							minItems: 1,
+						},
+						offers: {
+							type: "object",
+							properties: {
+								"@type": {const: "Offer"},
+								price: {type: "string", format: "double"},
+								priceCurrency: {const: "USD"},
+								url: {type: "string", format: "uri"},
+							},
+							required: ["price", "@type", "priceCurrency", "url"],
+						}
+					},
+					required: ["name", "includesObject", "offers"],
+				},
+				minOccurrence: 1,
+				maxOccurrence: 1,
+			}
+		},
 	] as const;
 	const res = await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
 		{url: "/", role: {type: "document"}},
