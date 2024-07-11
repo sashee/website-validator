@@ -10,6 +10,7 @@ import {Pool, withPool} from "./worker-runner.js";
 import xml2js from "xml2js";
 import { getInterestingPageElements, vnuValidates } from "./utils.js";
 import {debuglog} from "node:util";
+import Ajv from "ajv";
 
 export const log = debuglog("website-validator");
 
@@ -325,6 +326,12 @@ type DocumentErrors = {
 	sizes: string | undefined,
 }
 
+type AdditionalValidatorError = {
+	type: "JSON_DOES_NOT_MATCH_SCHEMA",
+	result: NonNullable<ReturnType<InstanceType<typeof Ajv>["compile"]>["errors"]>[number],
+	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+};
+
 export type ValidationResultType = DeepReadonly<LinkError
 | DocumentErrors
 | NotFoundError
@@ -341,7 +348,7 @@ export type ValidationResultType = DeepReadonly<LinkError
 	type: "SITEMAP_LINK_INVALID",
 	sitemapUrl: string,
 	url: string,
-}
+} | AdditionalValidatorError
 >
 
 type ExtraTypes = DeepReadonly<{extraTxtSitemaps?: string[] | undefined, extraXmlSitemaps?: string[] | undefined, extraUrls?: string[] | undefined}>;
@@ -461,7 +468,21 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 
 type TargetConfig = {dir: string, indexName?: string, responseMeta?: (path: string) => {headers: {[name: string]: string}, status: number}};
 
-export const validate = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes): Promise<Array<ValidationResultType>> => {
+type JSONAdditionalValidator = {
+	type: "json",
+	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+}
+
+type JSONLDAdditionalValidator = {
+	type: "json-ld",
+};
+
+export type AdditionalValidator = {
+	urlPattern: RegExp,
+	config: JSONAdditionalValidator | JSONLDAdditionalValidator,
+};
+
+export const validate = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes, additionalValidators: DeepReadonly<AdditionalValidator[]>): Promise<Array<ValidationResultType>> => {
 	assert((extras.extraUrls ?? []).every((url) => isInternalLink(baseUrl)(url)), "extraUrls must be internal links");
 	const indexName = targetConfig.indexName ?? "index.html";
 	return withPool(options?.concurrency)(async (pool) => {
@@ -488,7 +509,7 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 			...extraLinks,
 		];
 
-		log("fetchedFiles: %s, allLinks: %s, files: %s", JSON.stringify(fetchedFiles, undefined, 4), JSON.stringify(allLinks, undefined, 4), JSON.stringify(files, undefined, 4));
+		log("fetchedFiles: %O, allLinks: %O, files: %O", fetchedFiles, allLinks, files);
 		return (await Promise.all([
 			(async () => {
 				// not found errors
@@ -558,7 +579,8 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 							return [toCanonical(baseUrl, indexName)(url), target] as const;
 						}));
 						const vnuResults = vnuValidationResults[res.data.path];
-						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles, vnuResults});
+						const matchedAdditionalValidators = additionalValidators.filter(({urlPattern}) => urlPattern.test(url)).map(({config}) => config);
+						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles, vnuResults, additionalValidators: matchedAdditionalValidators});
 					}else {
 						return [];
 					}

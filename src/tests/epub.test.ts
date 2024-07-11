@@ -114,7 +114,7 @@ describe("epub", () => {
 				filename: "test.epub",
 				contents: epub,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 0);
 	});
 	it("reports errors for an invalid epub file", async () => {
@@ -139,7 +139,7 @@ describe("epub", () => {
 				filename: "test.epub",
 				contents: epub,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, 1);
 		failIds.forEach((failId, index) => {

@@ -38,7 +38,7 @@ describe("pdf", () => {
 				filename: "test.pdf",
 				contents: pdf,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
 	});
 	it("reports errors for an invalid pdf file", async () => {
@@ -64,7 +64,7 @@ describe("pdf", () => {
 				filename: "test.pdf",
 				contents: pdf,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 1);
 		assert(errors[0].type === "PDF_CAN_NOT_BE_PARSED" && errors[0].location.url.includes("test.pdf"), `Should have an error but did not`);
 	});

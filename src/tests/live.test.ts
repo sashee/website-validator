@@ -9,14 +9,69 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 it.skip("html error", async () => {
  try{
 	const extras = {};
+	const additionalValidators = [
+		{
+			urlPattern: /flashback.json$/,
+			config: {
+				type: "json",
+				schema: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							url: {type: "string", format: "uri"},
+							name: {type: "string"},
+							description: {type: "string"},
+							image: {type: "string", format: "uri"},
+							"small-image": {type: "string", format: "uri"},
+							keywords: {
+								type: "array",
+								items: {type: "string"},
+							},
+							datePublished: {type: "string", format: "date"},
+							dateModified: {type: "string", format: "date"},
+							outdated: {type: "boolean"},
+						},
+						required: ["url", "name", "image", "small-image", "keywords", "datePublished", "dateModified", "outdated"],
+					}
+				},
+			}
+		},
+		{
+			urlPattern: /shorts.json$/,
+			config: {
+				type: "json",
+				schema: {
+					type: "array",
+					items: {
+						type: "object",
+						properties: {
+							url: {type: "string", format: "uri"},
+							title: {type: "string"},
+							datePublished: {type: "string", format: "date"},
+							dateModified: {type: "string", format: "date"},
+						},
+						"required": ["url", "title", "datePublished", "dateModified"],
+					}
+				}
+			}
+		}
+	] as const;
 	const res = await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
 		{url: "/", role: {type: "document"}},
 		{url: "/robots.txt", role: {type: "robotstxt"}},
 		{url: "/rss-sashee.xml", role: {type: "rss"}},
 		{url: "/promos.json", role: {type: "json", extractConfigs: [{jmespath: "promos[*].url", asserts: [], role: {type: "document"}}, {jmespath: "promos[*].image", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}]}},
 		{url: "/flashback.json", role: {type: "json", extractConfigs: [{jmespath: "[*].[image, \"small-image\"][]", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}, {jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
-	], extras);
-	console.log(JSON.stringify(res, undefined, 4));
+	], extras, additionalValidators);
+	const filteredRes = res.filter((obj) => {
+		// we don't care about img alts
+		return (obj.type !== "VNU" || !obj.object.message.includes("An “img” element must have an “alt” attribute, except under certain conditions. For details, consult guidance on providing text alternatives for images.")) &&
+			// ignore CSS errors, bootstrap apparently does not compile to compliant css
+			(obj.type !== "VNU" || !obj.location.url.endsWith(".css"));
+	})
+
+	console.log(JSON.stringify(filteredRes, undefined, 4));
  }catch(e) {
 	 console.error(e);
 	 throw e;
@@ -67,7 +122,7 @@ it.skip("book", async () => {
 		},
 	}
 
-	const res = await validate({concurrency: 1})("https://www.s3-cloudfront-signed-urls-book.com", {dir: path.join(__dirname, "..", "..", "..", "signed-urls-book", "dist"), ...baseConfig})(fetchBases, extras);
+	const res = await validate({concurrency: 1})("https://www.s3-cloudfront-signed-urls-book.com", {dir: path.join(__dirname, "..", "..", "..", "signed-urls-book", "dist"), ...baseConfig})(fetchBases, extras, []);
 	console.log(JSON.stringify(res, undefined, 4));
  }catch(e) {
 	 console.error(e);

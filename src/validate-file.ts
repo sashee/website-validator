@@ -1,5 +1,5 @@
 import {DeepReadonly} from "ts-essentials";
-import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, VnuReportedError, getRedirect, isInternalLink, toCanonical} from "./index.js";
+import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, VnuReportedError, getRedirect, isInternalLink, toCanonical, AdditionalValidator} from "./index.js";
 import {validateEpub, validatePdf, getImageDimensions, getInterestingPageElements} from "./utils.js";
 import fs from "node:fs/promises";
 import robotsParser from "robots-parser";
@@ -8,8 +8,13 @@ import path from "node:path";
 import xml2js from "xml2js";
 import { strict as assert } from "node:assert";
 import {parseSrcset} from "srcset";
+import Ajv from "ajv";
+import addFormats from "ajv-formats"
 
-export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[]): Promise<ValidationResultType[]> => {
+const ajv = new Ajv();
+addFormats(ajv);
+
+export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[], additionalValidators: DeepReadonly<AdditionalValidator["config"][]>): Promise<ValidationResultType[]> => {
 	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];
 	const redirect = await getRedirect(res);
 	return (await Promise.all([
@@ -334,6 +339,30 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 			}else {
 				return [];
 			}
+		})(),
+		(async () => {
+			const contents = await fs.readFile(res.data.path);
+			return (await Promise.all(additionalValidators.map(async (additionalValidator) => {
+				assert(["json", "json-ld"].includes(additionalValidator.type));
+				if (additionalValidator.type === "json") {
+					const validate = ajv.compile(additionalValidator.schema);
+					const validationResult = await validate(JSON.parse(contents.toString("utf8")));
+					if (!validationResult) {
+						return validate.errors!.map((obj) => ({
+							type: "JSON_DOES_NOT_MATCH_SCHEMA",
+							result: obj,
+							schema: additionalValidator.schema,
+						} as const));
+					}else {
+						return [];
+					}
+				}else if (additionalValidator.type === "json-ld") {
+					// TODO: implement
+					return [];
+				}else {
+					return [];
+				}
+			}))).flat(1);
 		})(),
 	])).flat(1);
 	// TODO: validate rss item can have 1 link and 1 guid

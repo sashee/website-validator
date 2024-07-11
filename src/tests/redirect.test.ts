@@ -2,7 +2,6 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {initFailIds, setupTestFiles} from "./testutils.js";
-import fs from "node:fs/promises";
 import url from "url";
 import path from "node:path";
 
@@ -82,7 +81,7 @@ describe("redirects", () => {
 					status: 200,
 				}
 			}
-		}})([{url: "/", role: {type: "document"}}], {}));
+		}})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 	});
@@ -131,7 +130,7 @@ describe("redirects", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 	});
@@ -192,7 +191,7 @@ describe("redirects", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 1);
 		assert(errors[0].type === "REDIRECT_CHAIN");
 		assert(errors[0].targetUrl.endsWith("/refresh-target.html"));

@@ -15,7 +15,7 @@ User-agent: GPTBot
 Disallow: /
 				`
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}, []));
 			assert.equal(errors.length, 0);
 		});
 		it("can be the baseurl", async () => {
@@ -30,7 +30,7 @@ Disallow: /
 Host: example.com
 				`
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}, []));
 			assert.equal(errors.length, 0);
 		});
 		it("can not be anything but the baseurl", async () => {
@@ -45,7 +45,7 @@ Disallow: /
 Host: example2.com
 				`
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}, []));
 			assert.equal(errors.length, 1);
 			assert(errors[0].type === "ROBOTS_TXT_HOST_INVALID");
 			assert(errors[0].expectedHost === "example.com");
@@ -72,7 +72,7 @@ Sitemap: https://example.com/sitemap.txt
 https://example.com
 				`
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/robots.txt", role: {type: "robotstxt"}}], {}, []));
 			assert.equal(errors.length, 1);
 			assert(errors[0].type === "ROBOTS_TXT_SITEMAP_INVALID");
 			assert(errors[0].sitemapUrl === "https://example2.com/sitemap.txt");

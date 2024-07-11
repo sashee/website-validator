@@ -2,8 +2,6 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {initFailIds, setupTestFiles} from "./testutils.js";
-import url from "url";
-import path from "node:path";
 
 describe("canonical link", () => {
 	it("there can only be one canonical link on a page", async () => {
@@ -38,7 +36,7 @@ describe("canonical link", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		assert(errors[0].type === "MULTIPLE_CANONICAL_LINKS");
@@ -91,7 +89,7 @@ describe("canonical link", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		assert(errors[0].type === "REDIRECT_DIFFERENT_CANONICAL");
@@ -116,7 +114,7 @@ describe("canonical link", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 	});
@@ -198,7 +196,7 @@ describe("canonical link", () => {
 </html>
 				`
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		const failIds = getFailIds();
 		assert.equal(errors.length, failIds.length);
 		assert(errors[0].type === "NON_REDIRECT_DIFFERENT_CANONICAL");

@@ -24,7 +24,7 @@ describe("sitemap", () => {
 					filename: "internal.html",
 					contents: baseHtmlContents,
 				}
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/sitemap.xml", role: {type: "sitemap"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/sitemap.xml", role: {type: "sitemap"}}], {}, []));
 			assert.equal(errors.length, 1);
 			assert.equal(errors[0].type, "SITEMAP_LINK_INVALID");
 			assert(errors[0].sitemapUrl.includes("sitemap.xml"));
@@ -46,7 +46,7 @@ https://example2.com/external.html
 					filename: "internal.html",
 					contents: baseHtmlContents,
 				}
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/sitemap.txt", role: {type: "sitemap"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir})([{url: "/", role: {type: "document"}}, {url: "/sitemap.txt", role: {type: "sitemap"}}], {}, []));
 			assert.equal(errors.length, 1);
 			assert.equal(errors[0].type, "SITEMAP_LINK_INVALID");
 			assert(errors[0].sitemapUrl.includes("sitemap.txt"));

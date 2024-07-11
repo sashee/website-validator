@@ -46,7 +46,7 @@ describe("img", () => {
 					filename: "image150x150.png",
 					contents: await generateImage(150, 150),
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
 			assert(errors[0].type === "IMG_SRC_INVALID");
 			assert(errors[0].location.location.outerHTML.includes("bad"));
@@ -94,7 +94,7 @@ describe("img", () => {
 					filename: "image150x150.png",
 					contents: await generateImage(150, 150),
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
 			assert(errors[0].type === "IMG_SRC_INVALID");
 			assert(errors[0].location.location.outerHTML.includes("bad"));
@@ -136,7 +136,7 @@ describe("img", () => {
 					filename: "image110x100.png",
 					contents: await generateImage(110, 100),
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
 			assert(errors[0].type === "IMG_SRC_INVALID");
 			assert(errors[0].location.location.outerHTML.includes("bad"));
@@ -175,7 +175,7 @@ describe("img", () => {
 					filename: "image100x100.png",
 					contents: await generateImage(100, 100),
 				},
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
 			assert(errors[0].type === "IMG_SRC_INVALID");
 			assert(errors[0].location.location.outerHTML.includes("bad"));

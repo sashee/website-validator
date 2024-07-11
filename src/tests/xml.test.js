@@ -27,7 +27,7 @@ describe("xml", () => {
 				filename: "test.xml",
 				contents: xml,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 0);
 	});
 	it("reports errors for an invalid xml file", async () => {
@@ -51,7 +51,7 @@ describe("xml", () => {
 				filename: "test.xml",
 				contents: xml,
 			}
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 1);
 		assert(errors[0].type === "XML_FILE_UNPARSEABLE" && errors[0].location.url.includes("test.xml"), `Should have an error but did not`);
 	});

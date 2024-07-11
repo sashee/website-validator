@@ -25,7 +25,7 @@ describe("documents", () => {
 	</body>
 </html>
 				`
-			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			}])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			const failIds = getFailIds();
 			assert.equal(errors.length, failIds.length);
 			failIds.forEach((failId, index) => {
@@ -71,7 +71,7 @@ describe("documents", () => {
 					`
 
 				}
-			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}));
+			])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 			const failIds = getFailIds();
 			const vnuErrors = errors.filter((error) => error.type === "VNU" && error.object.type === "error");
 			assert.equal(vnuErrors.length, failIds.length);

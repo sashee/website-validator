@@ -1,5 +1,5 @@
 import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, LinkLocation, Assertion, FileFetchResult, VnuReportedError} from "./index.js";
+import {FoundPageFetchResult, UrlRole, LinkLocation, Assertion, FileFetchResult, VnuReportedError, AdditionalValidator} from "./index.js";
 import {validateFile as validateFileOrig} from "./validate-file.js";
 import {getLinks as getLinksOrig} from "./get-links.js";
 import { Pool } from "./worker-runner.js";
@@ -9,9 +9,9 @@ import {debuglog} from "node:util";
 
 const log = debuglog("website-validator:worker");
 
-export const validateFile = async ({baseUrl, indexName, url, res, roles, linkedFiles, vnuResults}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[]}) => {
+export const validateFile = async ({baseUrl, indexName, url, res, roles, linkedFiles, vnuResults, additionalValidators}: {baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[], additionalValidators: DeepReadonly<AdditionalValidator["config"][]>}) => {
 	const startTime = new Date().getTime();
-	const r = await validateFileOrig(baseUrl, indexName, url, res, roles, linkedFiles, vnuResults);
+	const r = await validateFileOrig(baseUrl, indexName, url, res, roles, linkedFiles, vnuResults, additionalValidators);
 	log("validateFile called with %s, finished in %d", url, new Date().getTime() - startTime);
 	return r;
 };
