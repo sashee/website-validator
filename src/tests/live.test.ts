@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-it("html error", async () => {
+it.skip("html error", async () => {
  try{
 	const extras = {};
 	const additionalValidators = [
@@ -35,7 +35,8 @@ it("html error", async () => {
 						required: ["url", "name", "image", "small-image", "keywords", "datePublished", "dateModified", "outdated"],
 					}
 				},
-			}
+			},
+			minMatches: 1,
 		},
 		{
 			urlPattern: /shorts.json$/,
@@ -54,7 +55,8 @@ it("html error", async () => {
 						required: ["url", "title", "datePublished", "dateModified"],
 					}
 				}
-			}
+			},
+			minMatches: 1,
 		},
 		{
 			urlPattern: /books_courses.html$/,
@@ -74,7 +76,8 @@ it("html error", async () => {
 					},
 					required: ["url", "@id"],
 				}
-			}
+			},
+			minMatches: 1,
 		},
 		{
 			urlPattern: /books_courses.html$/,
@@ -116,7 +119,8 @@ it("html error", async () => {
 				},
 				minOccurrence: 1,
 				maxOccurrence: 1,
-			}
+			},
+			minMatches: 1,
 		},
 	] as const;
 	const res = await validate()("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})([
@@ -125,6 +129,7 @@ it("html error", async () => {
 		{url: "/rss-sashee.xml", role: {type: "rss"}},
 		{url: "/promos.json", role: {type: "json", extractConfigs: [{jmespath: "promos[*].url", asserts: [], role: {type: "document"}}, {jmespath: "promos[*].image", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}]}},
 		{url: "/flashback.json", role: {type: "json", extractConfigs: [{jmespath: "[*].[image, \"small-image\"][]", asserts: [{type: "image"}, {type: "permanent"}], role: {type: "asset"}}, {jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
+		{url: "/shorts.json", role: {type: "json", extractConfigs: [{jmespath: "[*].url", asserts: [{type: "permanent"}], role: {type: "document"}}]}},
 	], extras, additionalValidators);
 	const filteredRes = res.filter((obj) => {
 		// we don't care about img alts

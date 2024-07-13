@@ -352,6 +352,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 							type: "JSON_DOES_NOT_MATCH_SCHEMA",
 							result: obj,
 							schema: additionalValidator.schema,
+							url,
 						} as const));
 					}else {
 						return [];
@@ -382,6 +383,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 											filter: additionalValidator.filter,
 											result: obj,
 											schema,
+											url,
 										} as const));
 									}else {
 										return [];
@@ -401,6 +403,7 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 									minOccurrence: additionalValidator.minOccurrence,
 									maxOccurrence: additionalValidator.maxOccurrence,
 									actualOccurrence: matchedJsonLds.length,
+									url,
 								}] as const;
 							}
 						})(),

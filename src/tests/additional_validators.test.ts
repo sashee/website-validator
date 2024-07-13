@@ -3,16 +3,27 @@ import { strict as assert } from "node:assert";
 import {validate} from "../index.js";
 import {setupTestFiles, initFailIds} from "./testutils.js";
 
+const htmlWithJsonLds = (jsonLds: string[]) => {
+	return `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		${jsonLds.map((jsonLd) => `
+			<script type="application/ld+json">
+				${jsonLd}
+			</script>
+		`)}
+	</body>
+</html>
+`;
+}
+
 describe("urlPattern", () => {
-	it("works", async () => {
-		const {getFailIds} = initFailIds();
-		const schema = {
-			type: "object",
-			properties: {
-				a: {type: "number"},
-			},
-		};
-		const errors = await setupTestFiles([
+	const test = async (additionalValidators: Parameters<ReturnType<ReturnType<typeof validate>>>[2]) => {
+		return setupTestFiles([
 			{
 				filename: "bad.json",
 				contents: JSON.stringify({a: "test"}),
@@ -21,11 +32,127 @@ describe("urlPattern", () => {
 				filename: "good.json",
 				contents: JSON.stringify({a: 15}),
 			},
-		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/good.json", role: {type: "json", extractConfigs: []}},{ url: "/bad.json", role: {type: "json", extractConfigs: []}}], {}, [{urlPattern: /good.json$/, config: {type: "json", schema}}]));
-		const failIds = getFailIds();
-		assert.equal(errors.length, failIds.length);
-		failIds.forEach((failId, index) => {
-			assert(errors.some((error) => error.type === "JSON_DOES_NOT_MATCH_SCHEMA"), `Should have an error but did not: ${index}`);
+			{
+				filename: "__index__.html",
+				contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting", name: "abc"})]),
+			},
+			{
+				filename: "index.html",
+				contents: htmlWithJsonLds([JSON.stringify({"@context": "https://schema.org/", "@type": "BlogPosting"})]),
+			},
+		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/good.json", role: {type: "json", extractConfigs: []}},{url: "/bad.json", role: {type: "json", extractConfigs: []}}, {url: "/__index__.html", role: {type: "document"}},{ url: "/index.html", role: {type: "document"}}], {}, additionalValidators));
+	}
+	it("works", async () => {
+		const additionalValidators = (urlPattern: RegExp) => {
+			return [{
+				urlPattern,
+				config: {
+					type: "json",
+					schema: {
+						type: "object",
+						properties: {
+							a: {type: "number"},
+						},
+					}
+				}
+			}] as const;
+		}
+		{
+			const errors = await test(additionalValidators(/^\/good.json$/));
+			assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+		}
+		{
+			const errors = await test(additionalValidators(/^\/bad.json$/));
+			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+		}
+	});
+	it("gets the relative url with the indexName", async () => {
+		const additionalValidators = (urlPattern: RegExp) => {
+			return [{
+				urlPattern,
+				config: {
+					type: "json-ld",
+					filter: {
+						type: "object",
+						properties: {
+							"@type": {const: "BlogPosting"},
+						}
+					},
+					schema: {
+						type: "object",
+						properties: {
+							name: {type: "string"},
+						},
+						required: ["name"],
+					}
+				}
+			}] as const;
+		};
+		{
+			const errors = await test(additionalValidators(/^\/__index__.html$/));
+			assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+		}
+		{
+			const errors = await test(additionalValidators(/^\/index.html$/));
+			assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+		}
+	});
+	describe("minMatches", () => {
+		it("works", async () => {
+			const additionalValidators = (urlPattern: RegExp) => {
+				return [{
+					urlPattern,
+					config: {
+						type: "json-ld",
+						filter: {
+							type: "object",
+							properties: {
+								"@type": {const: "BlogPosting"},
+							}
+						},
+						minOccurrence: 1,
+					},
+					minMatches: 1,
+				}] as const;
+			};
+			{
+				const errors = await test(additionalValidators(/^\/__index__.html$/));
+				assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+			}
+			{
+				const errors = await test(additionalValidators(/^\/nonexistent.html$/));
+				assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+				assert.equal(errors[0].type, "ADDITIONAL_VALIDATOR_MATCH_NUMBER_OUTSIDE_EXPECTED_RANGE", JSON.stringify(errors, undefined, 4));
+			}
+		});
+	});
+	describe("maxMatches", () => {
+		it("works", async () => {
+			const additionalValidators = (urlPattern: RegExp) => {
+				return [{
+					urlPattern,
+					config: {
+						type: "json-ld",
+						filter: {
+							type: "object",
+							properties: {
+								"@type": {const: "BlogPosting"},
+							}
+						},
+						minOccurrence: 1,
+					},
+					maxMatches: 1,
+				}] as const;
+			};
+			{
+				const errors = await test(additionalValidators(/^\/__index__.html$/));
+				assert.equal(errors.length, 0, JSON.stringify(errors, undefined, 4));
+			}
+			{
+				const errors = await test(additionalValidators(/\.html/));
+				assert.equal(errors.length, 1, JSON.stringify(errors, undefined, 4));
+				assert.equal(errors[0].type, "ADDITIONAL_VALIDATOR_MATCH_NUMBER_OUTSIDE_EXPECTED_RANGE", JSON.stringify(errors, undefined, 4));
+			}
 		});
 	});
 });
@@ -74,24 +201,6 @@ describe("json", () => {
 });
 
 describe("json/ld", () => {
-	const htmlWithJsonLds = (jsonLds: string[]) => {
-		return `
-<!DOCTYPE html>
-<html lang="en-us">
-	<head>
-		<title>title</title>
-	</head>
-	<body>
-${jsonLds.map((jsonLd) => `
-<script type="application/ld+json">
-${jsonLd}
-</script>
-							`)}
-	</body>
-</html>
-`;
-	}
-
 	describe("minOccurrence", () => {
 		it("works when the validation passes", async () => {
 			const additionalValidators = [{

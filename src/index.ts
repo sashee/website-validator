@@ -330,17 +330,26 @@ type AdditionalValidatorError = {
 	type: "JSON_DOES_NOT_MATCH_SCHEMA",
 	result: NonNullable<ReturnType<InstanceType<typeof Ajv>["compile"]>["errors"]>[number],
 	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	url: string,
 } | {
 	type: "JSON_LD_DOES_NOT_MATCH_SCHEMA",
 	filter: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
 	result: NonNullable<ReturnType<InstanceType<typeof Ajv>["compile"]>["errors"]>[number],
 	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	url: string,
 } | {
 	type: "JSON_LD_DOES_NOT_MATCH_OCCURRENCE_REQUIREMENT",
 	filter: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
 	minOccurrence: number | undefined,
 	maxOccurrence: number | undefined,
 	actualOccurrence: number,
+	url: string,
+} | {
+	type: "ADDITIONAL_VALIDATOR_MATCH_NUMBER_OUTSIDE_EXPECTED_RANGE",
+	minMatches: number | undefined,
+	maxMatches: number | undefined,
+	actualMatches: number,
+	urlPattern: string,
 };
 
 export type ValidationResultType = DeepReadonly<LinkError
@@ -497,6 +506,8 @@ type JSONLDAdditionalValidator = {
 
 export type AdditionalValidator = {
 	urlPattern: RegExp,
+	minMatches?: number,
+	maxMatches?: number,
 	config: JSONAdditionalValidator | JSONLDAdditionalValidator,
 };
 
@@ -587,7 +598,7 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 				});
 				const vnuValidationResults = await vnuValidates(vnuCheckFiles);
 
-				return (await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]): Promise<ValidationResultType[]> => {
+				const fileValidationResults = await Promise.all(Object.entries(files).map(async ([url, {res, roles, links}]): Promise<{matchedAdditionalValidators: (typeof additionalValidators), errors: ValidationResultType[]}> => {
 					if (res.data !== null) {
 						assert(links);
 						const linkedFiles = Object.fromEntries(links.filter(({url}) => isInternalLink(baseUrl)(url)).map(({url}) => {
@@ -597,12 +608,32 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 							return [toCanonical(baseUrl, indexName)(url), target] as const;
 						}));
 						const vnuResults = vnuValidationResults[res.data.path];
-						const matchedAdditionalValidators = additionalValidators.filter(({urlPattern}) => urlPattern.test(url)).map(({config}) => config);
-						return await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles, vnuResults, additionalValidators: matchedAdditionalValidators});
+						const matchedAdditionalValidators = additionalValidators.filter(({urlPattern}) => urlPattern.test(toRelativeUrl(baseUrl)(url)));
+						return {matchedAdditionalValidators, errors: await pool!.validateFile({baseUrl, indexName, url, res: res as FoundPageFetchResult, roles, linkedFiles, vnuResults, additionalValidators: matchedAdditionalValidators.map(({config}) => config)})};
 					}else {
-						return [];
+						return {matchedAdditionalValidators: [], errors: []};
 					}
-				}))).flat(2);
+				}));
+				return [
+					...additionalValidators.map((additionalValidator) => {
+						return [additionalValidator, fileValidationResults.reduce((memo, {matchedAdditionalValidators}) => {
+							return memo + (matchedAdditionalValidators.includes(additionalValidator) ? 1 : 0);
+						}, 0)] as const;
+					}).flatMap(([additionalValidator, num]) => {
+						if (num >= (additionalValidator.minMatches ?? 0) && num <= (additionalValidator.maxMatches ?? Number.MAX_SAFE_INTEGER)) {
+							return [];
+						}else {
+							return [{
+								type: "ADDITIONAL_VALIDATOR_MATCH_NUMBER_OUTSIDE_EXPECTED_RANGE",
+								minMatches: additionalValidator.minMatches,
+								maxMatches: additionalValidator.maxMatches,
+								actualMatches: num,
+								urlPattern: additionalValidator.urlPattern.toString(),
+							}] as const;
+						}
+					}),
+					...fileValidationResults.map(({errors}) => errors).flat(2),
+				];
 			})(),
 		])).flat(1);
 	});
