@@ -513,6 +513,7 @@ export type AdditionalValidator = {
 
 export const validate = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) => async (fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes, additionalValidators: DeepReadonly<AdditionalValidator[]>): Promise<Array<ValidationResultType>> => {
 	assert((extras.extraUrls ?? []).every((url) => isInternalLink(baseUrl)(url)), "extraUrls must be internal links");
+	assert(path.isAbsolute(targetConfig.dir), "targetConfig.dir must be an absolute path");
 	const indexName = targetConfig.indexName ?? "index.html";
 	return withPool(options?.concurrency)(async (pool) => {
 		const fetchedFiles = await fetchFileGraph(pool!)(baseUrl, targetConfig)(fetchBases, extras);
@@ -647,6 +648,8 @@ export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: s
 				nonForwardCompatibleJsonLinks: DeepReadonly<{url: string, location: LinkLocation}[]>,
 				feedGuidsChanged: DeepReadonly<{url: string, feedUrl: string, originalGuid: string, newGuid: string}[]>,
 			}> => {
+				assert(path.isAbsolute(targetConfig.dir), "targetConfig.dir must be an absolute path");
+				assert(path.isAbsolute(originalTargetConfig.dir), "originalTargetConfig.dir must be an absolute path");
 				return withPool(options?.concurrency)(async (pool) => {
 					const [originalFileGraph, newFileGraph] = await Promise.all([
 						fetchFileGraph(pool!)(originalBaseUrl, originalTargetConfig)(originalFetchBases, originalExtras),
