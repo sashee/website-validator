@@ -10,7 +10,7 @@ import { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } fro
 import {execFile} from "node:child_process";
 import util from "node:util";
 import vnu from "vnu-jar";
-import epubchecker from "epubchecker";
+import * as epubcheck from "epubcheck-static";
 import sharp from "sharp";
 import {DeepReadonly} from "ts-essentials";
 import {getDocument} from "pdfjs-dist";
@@ -186,7 +186,26 @@ export const vnuValidates = async (files: DeepReadonly<Array<{data: FoundPageFet
 };
 
 export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data"]) => {
-	return (await epubchecker(data.path)).messages as EpubcheckError[];
+	return withTempDir(async (dir) => {
+		const outPath = path.join(dir, "out");
+		try {
+			await util.promisify(execFile)("java", ["-jar", epubcheck.path, "--json", outPath, data.path]);
+			// move to catch with a dummy error
+			// so the read is not duplicated
+			throw new Error("move to catch");
+		}catch(e) {
+			// epubcheck will exit with 1 if it found errors
+			// so try to read and parse the output
+			// and only throw an error if that fails
+			try {
+				const result = await fs.readFile(outPath, "utf8");
+				return JSON.parse(result).messages as EpubcheckError[];
+			}catch(e) {
+				console.error(e);
+				throw e;
+			}
+		}
+	});
 }, {calcCacheKey: (data) => ["epubcheck_validate_1", data.path, data.mtime]});
 
 export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"]) => {
