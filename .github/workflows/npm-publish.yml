@@ -24,6 +24,9 @@ jobs:
         fetch-depth: 0
     - name: Run the full build
       run: nix-build
-    - run: npm publish --provenance --access public ${{github.workspace}}/result-2/*.tgz
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+    - run: npm publish --provenance --access public ./result-2/*.tgz
       env:
         NODE_AUTH_TOKEN: ${{secrets.npm_token}}
