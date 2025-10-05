@@ -24,6 +24,6 @@ jobs:
         fetch-depth: 0
     - name: Run the full build
       run: nix-build
-    - run: npm publish --provenance --access public result-2/*.tgz
+    - run: npm publish --provenance --access public ${{github.workspace}}/result-2/*.tgz
       env:
         NODE_AUTH_TOKEN: ${{secrets.npm_token}}
