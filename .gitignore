@@ -1,7 +1,7 @@
 node_modules/
 dist/
 src/deps.json
-result/
-result-2/
+result
+result-2
 .cache
 .npm_cache

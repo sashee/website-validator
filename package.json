@@ -18,7 +18,7 @@
     "build": "tsc --build && npm run copy_static_files",
     "clean": "tsc --build --clean",
     "prepare": "npm run clean && npm run build",
-    "copy_static_files": "cp src/tests/slick.woff2 dist/tests/slick.woff2 && cp src/.npmignore dist/.npmignore"
+    "copy_static_files": "cp -u src/tests/slick.woff2 dist/tests/slick.woff2 && cp -u src/.npmignore dist/.npmignore"
   },
   "author": {
     "name": "Tamas Sallai",
@@ -54,7 +54,7 @@
     "sharp": "^0.34.4",
     "srcset": "^5.0.2",
     "vnu-jar": "^24.10.17",
-    "with-file-cache": "^3.3.0",
+    "with-file-cache": "3.4.0",
     "with-worker-threads": "^0.5.1",
     "xml2js": "^0.6.2"
   }

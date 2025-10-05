@@ -14,6 +14,9 @@ import * as epubcheck from "epubcheck-static";
 import sharp from "sharp";
 import {DeepReadonly} from "ts-essentials";
 import {getDocument, VerbosityLevel} from "pdfjs-dist/legacy/build/pdf.mjs";
+import deps from "./deps.json" with {type: "json"};
+
+assert(deps.java);
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -25,10 +28,6 @@ export const addFileCache = withFileCache(
 					"package-lock.json",
 				];
 				return (await Promise.all(files.map((file) => fs.readFile(file).then((contents) => sha(contents))))).join(";");
-			})(),
-			(async () => {
-				const javaVersion = (await util.promisify(execFile)("java", ["--version"])).stdout;
-				return sha(javaVersion);
 			})(),
 		])).reduce((memo, val) => sha(memo + ";" + val), "");
 	}},
@@ -167,7 +166,7 @@ export const vnuValidates = async (files: DeepReadonly<Array<{data: FoundPageFet
 
 	return (await Promise.all(Object.entries(byType).map(async ([type, datas]) => {
 		// TODO: streaming result
-		const {stdout} = await util.promisify(execFile)("java", ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", ...datas.map(({path}) => path)], {maxBuffer: 100*1024*1024});
+		const {stdout} = await util.promisify(execFile)(`${deps.java}/bin/java`, ["-jar", vnu, `--${type}`, "--exit-zero-always", "--stdout", "--format", "json", ...datas.map(({path}) => path)], {maxBuffer: 100*1024*1024});
 		const out = JSON.parse(stdout) as VnuResult;
 		if (out.messages.some(({type}) => type === "non-document-error")) {
 			throw new Error(JSON.stringify(out.messages, undefined, 4));
@@ -189,7 +188,7 @@ export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data
 	return withTempDir(async (dir) => {
 		const outPath = path.join(dir, "out");
 		try {
-			await util.promisify(execFile)("java", ["-jar", epubcheck.path, "--json", outPath, data.path]);
+			await util.promisify(execFile)(`${deps.java}/bin/java`, ["-jar", epubcheck.path, "--json", outPath, data.path]);
 			// move to catch with a dummy error
 			// so the read is not duplicated
 			throw new Error("move to catch");

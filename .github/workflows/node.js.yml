@@ -11,19 +11,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: ['lts/*']
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+    - uses: cachix/install-nix-action@v31
       with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
-      env:
-        NODE_DEBUG: 'website-validator*'
+        nix_path: nixpkgs=channel:nixos-25.05
+    - name: Checkout current ref
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Run the full build
+      run: nix-build
