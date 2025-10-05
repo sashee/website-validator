@@ -16,7 +16,7 @@ let
 	builder = pkgs.stdenv.mkDerivation {
 		pname = ''${packageJson.name}-builder'';
 		version = packageJson.version;
-		src = srcWithoutNix;
+		src = pkgs.nix-gitignore.gitignoreSource [] ./.;
 		installPhase = ''
 			mkdir $out
 			cp -r $src/. $out
