@@ -27,6 +27,7 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: 'lts/*'
+        registry-url: https://registry.npmjs.org/
     - run: npm publish --provenance --access public ./result-2/*.tgz
       env:
         NODE_AUTH_TOKEN: ${{secrets.npm_token}}
