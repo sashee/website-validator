@@ -328,18 +328,18 @@ type DocumentErrors = {
 
 type AdditionalValidatorError = {
 	type: "JSON_DOES_NOT_MATCH_SCHEMA",
-	result: NonNullable<ReturnType<InstanceType<typeof Ajv>["compile"]>["errors"]>[number],
-	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	result: NonNullable<ReturnType<InstanceType<typeof Ajv.default>["compile"]>["errors"]>[number],
+	schema: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 	url: string,
 } | {
 	type: "JSON_LD_DOES_NOT_MATCH_SCHEMA",
-	filter: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
-	result: NonNullable<ReturnType<InstanceType<typeof Ajv>["compile"]>["errors"]>[number],
-	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	filter: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
+	result: NonNullable<ReturnType<InstanceType<typeof Ajv.default>["compile"]>["errors"]>[number],
+	schema: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 	url: string,
 } | {
 	type: "JSON_LD_DOES_NOT_MATCH_OCCURRENCE_REQUIREMENT",
-	filter: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	filter: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 	minOccurrence: number | undefined,
 	maxOccurrence: number | undefined,
 	actualOccurrence: number,
@@ -490,18 +490,18 @@ type TargetConfig = {dir: string, indexName?: string, responseMeta?: (path: stri
 
 type JSONAdditionalValidator = {
 	type: "json",
-	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	schema: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 }
 
 type RequireAtLeastOne<T, R extends keyof T = keyof T> = Omit<T, R> & {   [ P in R ] : Required<Pick<T, P>> & Partial<Omit<T, P>> }[R];
 
 type JSONLDAdditionalValidator = {
 	type: "json-ld",
-	filter: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	filter: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 } & RequireAtLeastOne<{
 	minOccurrence: number,
 	maxOccurrence: number,
-	schema: Parameters<InstanceType<typeof Ajv>["compile"]>[0],
+	schema: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
 }>;
 
 export type AdditionalValidator = {

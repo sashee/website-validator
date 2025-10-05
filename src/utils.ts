@@ -6,14 +6,14 @@ import { strict as assert } from "node:assert";
 import {withFileCache} from "with-file-cache";
 import crypto from  "node:crypto";
 import {JSDOM} from "jsdom";
-import { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } from ".";
+import { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } from "./index.js";
 import {execFile} from "node:child_process";
 import util from "node:util";
 import vnu from "vnu-jar";
 import * as epubcheck from "epubcheck-static";
 import sharp from "sharp";
 import {DeepReadonly} from "ts-essentials";
-import {getDocument} from "pdfjs-dist";
+import {getDocument, VerbosityLevel} from "pdfjs-dist/legacy/build/pdf.mjs";
 
 export const sha = (x: crypto.BinaryLike) => crypto.createHash("sha256").update(x).digest("hex");
 
@@ -76,7 +76,7 @@ export const extractAllUrlsFromCss = async (css: string) => {
 				const urlPattern = /url\((?<n>([^\)]|(?<=\\)\))*)\)/g;
 				if (decl.value && decl.value.match(urlPattern)) {
 					const urls = [...decl.value.match(urlPattern)!];
-					urls.filter((url) => !url.startsWith("url(\"data:") && !url.startsWith("url(data:")).map((url) => {
+					urls.filter((url) => !url.startsWith("url(\"data:") && !url.startsWith("url(data:") && !url.startsWith("url('data:")).map((url) => {
 						const getPath = (decl: postcss.Container["parent"]): string[] => {
 							if (decl) {
 								const asString = (decl: NonNullable<postcss.Container["parent"]>) => {
@@ -105,7 +105,7 @@ export const extractAllUrlsFromCss = async (css: string) => {
 							const res = url.match(/^url\((?<data>.*)\)$/);
 							assert(res, `could not parse css url: ${url} , decl.value: ${decl.value}`);
 							const resString = res!.groups!["data"]
-							if (resString.startsWith("\"") && resString.endsWith("\"")) {
+							if ((resString.startsWith("\"") && resString.endsWith("\"")) || (resString.startsWith("'") && resString.endsWith("'"))) {
 								if (resString.length === 1) {
 									throw new Error("Whops");
 								}
@@ -211,7 +211,7 @@ export const validateEpub = addFileCache(async (data: FoundPageFetchResult["data
 export const validatePdf = addFileCache(async (data: FoundPageFetchResult["data"]) => {
 	const pdf = await fs.readFile(data.path);
 	try {
-		const document = await getDocument({data: new Uint8Array(pdf, pdf.byteOffset, pdf.byteLength), stopAtErrors: true}).promise;
+		const document = await getDocument({data: new Uint8Array(pdf.buffer, pdf.byteOffset, pdf.byteLength), stopAtErrors: true, verbosity: VerbosityLevel.ERRORS}).promise;
 		const page = await document.getPage(1);
 		await page.getTextContent();
 	}catch(e: any) {

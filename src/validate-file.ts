@@ -2,17 +2,20 @@ import {DeepReadonly} from "ts-essentials";
 import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, VnuReportedError, getRedirect, isInternalLink, toCanonical, AdditionalValidator} from "./index.js";
 import {validateEpub, validatePdf, getImageDimensions, getInterestingPageElements} from "./utils.js";
 import fs from "node:fs/promises";
-import robotsParser from "robots-parser";
+import _robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.js";
 import path from "node:path";
 import xml2js from "xml2js";
 import { strict as assert } from "node:assert";
 import {parseSrcset} from "srcset";
-import Ajv from "ajv";
+import {Ajv} from "ajv";
 import addFormats from "ajv-formats"
 
+// can be removed when robots-parser is converted to ESM
+const robotsParser = _robotsParser as any as typeof _robotsParser.default;
+
 const ajv = new Ajv();
-addFormats(ajv);
+addFormats.default(ajv);
 
 export const validateFile = async (baseUrl: string, indexName: string, url: string, res: FoundPageFetchResult, roles: DeepReadonly<UrlRole[]>, linkedFiles: {[url: string]: FileFetchResult}, vnuResults: VnuReportedError[], additionalValidators: DeepReadonly<AdditionalValidator["config"][]>): Promise<ValidationResultType[]> => {
 	const contentType = Object.entries(res.headers).find(([name]) => name.toLowerCase() === "content-type")?.[1];

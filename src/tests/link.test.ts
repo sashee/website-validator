@@ -209,7 +209,7 @@ describe("links", () => {
 	font-style: normal;
 	font-weight: 400;
 	font-display: block;
-	src: url("/abc.woff2") format("woff2"), url("${nextFailId()}") format("woff2"), url(/abc.woff2) format("woff2"), url(${nextFailId()}) format("woff2");
+	src: url("/abc.woff2") format("woff2"), url("${nextFailId()}") format("woff2"), url(/abc.woff2) format("woff2"), url(${nextFailId()}) format("woff2"), url('/abc.woff2') format("woff2"), url('${nextFailId()}') format("woff2");
 }
 			`
 		},

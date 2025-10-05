@@ -1,12 +1,15 @@
-import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect, isInternalLink} from "./index.js";
+import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect} from "./index.js";
 import {parseSrcset} from "srcset";
-import robotsParser from "robots-parser";
+import _robotsParser from "robots-parser";
 import xml2js from "xml2js";
 import jmespath from "jmespath";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {extractAllUrlsFromCss, getElementLocation, getInterestingPageElements} from "./utils.js";
+import {extractAllUrlsFromCss, getInterestingPageElements} from "./utils.js";
 import {DeepReadonly} from "ts-essentials";
+
+// can be removed when robots-parser is converted to ESM
+const robotsParser = _robotsParser as any as typeof _robotsParser.default;
 
 export const getUrlsFromSitemap = async (contents: string, type: "xml" | "txt") => {
 	switch(type) {

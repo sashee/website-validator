@@ -5,9 +5,6 @@ import { getLinks, validateFile, checkLink } from "./worker.js";
 
 const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
-// TODO: remove when there are no more warnings
-process.env["NODE_NO_WARNINGS"] = "1";
-
 export type Pool = {
 	validateFile: typeof validateFile,
 	getLinks: typeof getLinks,
