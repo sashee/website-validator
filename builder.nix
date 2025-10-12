@@ -11,8 +11,6 @@ let
 		src=pkgs.nix-gitignore.gitignoreSource [] ./.;
 	});
 
-	deps_json = import ./deps_json.nix {inherit pkgs;};
-
 	builder = pkgs.stdenv.mkDerivation {
 		pname = ''${packageJson.name}-builder'';
 		version = packageJson.version;
@@ -21,7 +19,6 @@ let
 			mkdir $out
 			cp -r $src/. $out
 			chmod -R a+w $out/src
-			ln -s ${deps_json} $out/src/deps.json
 			ln -s ${node_modules} $out/node_modules
 		'';
 		dontBuild = true;

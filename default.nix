@@ -1,10 +1,10 @@
 let
-  nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/tarball/nixos-25.05";
-  pkgs = import nixpkgs { config = {}; overlays = []; };
+	dependencies = import ./dependencies.nix;
+
+	pkgs = dependencies.pkgs;
 
 	node_modules = (import ./node_modules.nix {
 		pkgs = pkgs;
-		nodejs = pkgs.nodePackages_latest.nodejs;
 	}).node_modules;
 
 	builder = (import ./builder.nix {
@@ -28,7 +28,7 @@ let
 			--bind-tcp 9229 \
 	'';
 
-	code = pkgs.stdenv.mkDerivation {
+	code = pkgs.stdenv.mkDerivation ({
 		pname = packageJson.name;
 		version = packageJson.version;
 		outputs = ["out"];
@@ -42,7 +42,6 @@ let
 		'';
 		shellHook = ''
 			${runInLandRun} ln -fs ${builder.builder}/node_modules node_modules
-			${runInLandRun} ln -fs ${builder.builder}/src/deps.json src/deps.json
 			${runInLandRun} ${pkgs.bash}/bin/bash
 			exit
 		'';
@@ -50,7 +49,7 @@ let
 		dontInstall = true;
 		dontFixup = true;
 		dontPatchShebangs = true;
-	};
+	} // dependencies.variables);
 
 	package = pkgs.stdenv.mkDerivation {
 		name = "package";
