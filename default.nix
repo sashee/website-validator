@@ -1,10 +1,15 @@
 let
-	dependencies = import ./dependencies.nix;
+	dependencies = import ./dependencies.nix {
+		packageJson = ./package.json;
+		packageLockJson = ./package-lock.json;
+	};
 
 	pkgs = dependencies.pkgs;
 
 	node_modules = (import ./node_modules.nix {
 		pkgs = pkgs;
+		packageJson = ./package.json;
+		packageLockJson = ./package-lock.json;
 	}).node_modules;
 
 	builder = (import ./builder.nix {
@@ -37,7 +42,10 @@ let
 		buildPhase = ''
 			mkdir $out
 			cp -r ${builder.builder}/. $out
+			cp ${builder.builder}/package.json $out/_package.json
+			cp ${builder.builder}/package-lock.json $out/_package-lock.json
 			cd $out
+			npm run build
 			NODE_DEBUG="website-validator*" CACHE_DIR=$out/.cache npm run test
 		'';
 		shellHook = ''

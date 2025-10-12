@@ -1,9 +1,15 @@
+{
+	packageJson ? ./_package.json,
+	packageLockJson ? ./_package-lock.json,
+}:
+
 let
   nixpkgs = fetchTarball "https://github.com/NixOS/nixpkgs/tarball/nixos-25.05";
   pkgs = import nixpkgs { config = {}; overlays = []; };
 
 	node_modules = (import ./node_modules.nix {
 		pkgs = pkgs;
+		inherit packageJson packageLockJson;
 	}).node_modules;
 
 	vnu_jar = ''${node_modules}/vnu-jar/build/dist/vnu.jar'';
