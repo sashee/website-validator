@@ -6,13 +6,11 @@ import { strict as assert } from "node:assert";
 import {withFileCache} from "with-file-cache";
 import crypto from  "node:crypto";
 import {JSDOM} from "jsdom";
-import { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } from "./index.js";
+import type { EpubcheckError, FoundPageFetchResult, VnuReportedError, VnuResult } from "./index.ts";
 import {execFile} from "node:child_process";
 import util from "node:util";
-import vnu from "vnu-jar";
-import * as epubcheck from "epubcheck-static";
 import sharp from "sharp";
-import {DeepReadonly} from "ts-essentials";
+import type {DeepReadonly} from "ts-essentials";
 import {getDocument, VerbosityLevel} from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const WEBSITE_VALIDATOR_VNU = process.env["WEBSITE_VALIDATOR_VNU"];

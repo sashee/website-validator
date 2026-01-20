@@ -1,12 +1,13 @@
-import {LinkLocation, UrlRole, Assertion, FoundPageFetchResult, log, getRedirect} from "./index.js";
+import type {LinkLocation, UrlRole, Assertion, FoundPageFetchResult} from "./index.ts";
+import {log, getRedirect} from "./index.ts";
 import {parseSrcset} from "srcset";
 import _robotsParser from "robots-parser";
 import xml2js from "xml2js";
 import jmespath from "jmespath";
 import fs from "node:fs/promises";
 import path from "node:path";
-import {extractAllUrlsFromCss, getInterestingPageElements} from "./utils.js";
-import {DeepReadonly} from "ts-essentials";
+import {extractAllUrlsFromCss, getInterestingPageElements} from "./utils.ts";
+import type {DeepReadonly} from "ts-essentials";
 
 // can be removed when robots-parser is converted to ESM
 const robotsParser = _robotsParser as any as typeof _robotsParser.default;

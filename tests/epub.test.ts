@@ -1,8 +1,8 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
+import {validate} from "../src/index.ts";
 import {Uint8ArrayWriter, ZipWriter, TextReader} from "@zip.js/zip.js";
-import {initFailIds, setupTestFiles} from "./testutils.js";
+import {initFailIds, setupTestFiles} from "./testutils.ts";
 import fs from "node:fs/promises";
 
 const generateEpub = async (valid: boolean) => {

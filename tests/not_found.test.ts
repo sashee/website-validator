@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
-import {setupTestFiles} from "./testutils.js";
+import {validate} from "../src/index.ts";
+import {setupTestFiles} from "./testutils.ts";
 
 describe("NOT_FOUND", () => {
 	it("reports if a fetch base is missing", async () => {

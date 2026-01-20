@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
-import {setupTestFiles, initFailIds} from "./testutils.js";
+import {validate} from "../src/index.ts";
+import {setupTestFiles, initFailIds} from "./testutils.ts";
 
 const htmlWithJsonLds = (jsonLds: string[]) => {
 	return `

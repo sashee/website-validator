@@ -1,6 +1,6 @@
 import {it} from "node:test";
 import path from "node:path";
-import {validate, compareVersions} from "../index.js";
+import {validate, compareVersions} from "../src/index.ts";
 import url from "node:url";
 import assert from "node:assert/strict";
 

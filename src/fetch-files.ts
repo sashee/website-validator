@@ -1,10 +1,11 @@
 import Rx from "rxjs";
 import RxJsOperators from "rxjs/operators";
-import {UrlRole, toCanonical, FoundPageFetchResult, isInternalLink, FileFetchResult} from "./index.js";
+import type {UrlRole, FoundPageFetchResult, FileFetchResult} from "./index.ts";
+import {toCanonical, isInternalLink} from "./index.ts";
 import {deepEqual} from "fast-equals";
 import url from "node:url";
-import {DeepReadonly} from "ts-essentials";
-import {Pool} from "./worker-runner.js";
+import type {DeepReadonly} from "ts-essentials";
+import type {Pool} from "./worker-runner.ts";
 
 export const recursiveFetchFiles = (pool: Pool, fetchFile: (url: string) => Promise<DeepReadonly<FileFetchResult>>, baseUrl: string, indexName: string) => async (startUrls: DeepReadonly<{url: string, role: UrlRole}[]>) => {
 	if (startUrls.length === 0) {

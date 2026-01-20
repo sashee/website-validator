@@ -1,7 +1,8 @@
 import { strict as assert } from "node:assert";
-import {DeepReadonly} from "ts-essentials";
-import { Assertion, LinkLocation, toCanonical, LinkErrorTypes, fetchFileGraph, FileFetchResult, isInternalLink, ValidationResultType, getRedirect, FoundPageFetchResult } from "./index.js";
-import { getInterestingPageElements } from "./utils.js";
+import type {DeepReadonly} from "ts-essentials";
+import type { Assertion, LinkLocation, LinkErrorTypes, FileFetchResult, ValidationResultType, FoundPageFetchResult } from "./index.ts";
+import { toCanonical, fetchFileGraph, isInternalLink, getRedirect } from "./index.ts";
+import { getInterestingPageElements } from "./utils.ts";
 
 export const checkLink = (baseUrl: string, indexName: string) => async (link: {url: string, asserts: readonly Assertion[], location: LinkLocation}, target: DeepReadonly<FileFetchResult>): Promise<ValidationResultType[]> => {
 	if (isInternalLink(baseUrl)(link.url)) {

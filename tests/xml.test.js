@@ -1,11 +1,13 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
+import {validate} from "../src/index.js";
 import {setupTestFiles} from "./testutils.js";
+import muhammara from "muhammara";
+import streams from "memory-streams";
 
-describe("json", () => {
-	it("reports no errors for a valid json file", async () => {
-		const json = JSON.stringify({a: ["bb", 34, {obj: "aa"}]});
+describe("xml", () => {
+	it("reports no errors for a valid xml file", async () => {
+		const xml = "<foo></foo>";
 		const errors = await setupTestFiles([
 			{
 				filename: "index.html",
@@ -16,20 +18,20 @@ describe("json", () => {
 		<title>title</title>
 	</head>
 	<body>
-		<a href="test.json">json file</a>
+		<a href="test.xml">xml file</a>
 	</body>
 </html>
 			`
 			},
 			{
-				filename: "test.json",
-				contents: json,
+				filename: "test.xml",
+				contents: xml,
 			}
 		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 0);
 	});
-	it("reports errors for an invalid json file", async () => {
-		const json = `{"a": [}`;
+	it("reports errors for an invalid xml file", async () => {
+		const xml = "<foo></foo2>";
 		const errors = await setupTestFiles([
 			{
 				filename: "index.html",
@@ -40,17 +42,17 @@ describe("json", () => {
 		<title>title</title>
 	</head>
 	<body>
-		<a href="test.json">json file</a>
+		<a href="test.xml">xml file</a>
 	</body>
 </html>
 			`
 			},
 			{
-				filename: "test.json",
-				contents: json,
+				filename: "test.xml",
+				contents: xml,
 			}
 		])((dir) => validate({concurrency: 1})("https://example.com", {dir, indexName: "index.html"})([{url: "/", role: {type: "document"}}], {}, []));
 		assert.equal(errors.length, 1);
-		assert(errors[0].type === "JSON_FILE_UNPARSEABLE" && errors[0].location.url.includes("test.json"), `Should have an error but did not`);
+		assert(errors[0].type === "XML_FILE_UNPARSEABLE" && errors[0].location.url.includes("test.xml"), `Should have an error but did not`);
 	});
 });

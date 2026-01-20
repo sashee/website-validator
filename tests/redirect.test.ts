@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
-import {initFailIds, setupTestFiles} from "./testutils.js";
+import {validate} from "../src/index.ts";
+import {initFailIds, setupTestFiles} from "./testutils.ts";
 import url from "url";
 import path from "node:path";
 

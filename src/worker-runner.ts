@@ -1,9 +1,10 @@
-import url from "url";
+import url from "node:url";
 import path from "node:path";
 import {withWorkerThreads} from "with-worker-threads";
-import { getLinks, validateFile, checkLink } from "./worker.js";
+import { getLinks, validateFile, checkLink } from "./worker.ts";
 
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
+const workerRunnerPath = url.fileURLToPath(import.meta.url);
+const workerPath = path.join(path.dirname(workerRunnerPath), `worker${path.extname(workerRunnerPath)}`);
 
 export type Pool = {
 	validateFile: typeof validateFile,
@@ -15,6 +16,6 @@ export const withPool = (concurrency?: number) => withWorkerThreads<Pool>({
 	validateFile: (tasker) => (...args) => tasker(args),
 	getLinks: (tasker) => (...args) => tasker(args),
 	checkLink: (tasker) => (...args) => tasker(args),
-})(path.resolve(__dirname, "worker.js"), {
+})(workerPath, {
 		...(concurrency === undefined ? {} : {concurrency}),
 });

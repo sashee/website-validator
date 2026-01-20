@@ -1,9 +1,10 @@
-import {DeepReadonly} from "ts-essentials";
-import {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, VnuReportedError, getRedirect, isInternalLink, toCanonical, AdditionalValidator} from "./index.js";
-import {validateEpub, validatePdf, getImageDimensions, getInterestingPageElements} from "./utils.js";
+import type {DeepReadonly} from "ts-essentials";
+import type {FileFetchResult, FoundPageFetchResult, UrlRole, ValidationResultType, VnuReportedError, AdditionalValidator} from "./index.ts";
+import {getRedirect, isInternalLink, toCanonical} from "./index.ts";
+import {validateEpub, validatePdf, getImageDimensions, getInterestingPageElements} from "./utils.ts";
 import fs from "node:fs/promises";
 import _robotsParser from "robots-parser";
-import { getUrlsFromSitemap } from "./get-links.js";
+import { getUrlsFromSitemap } from "./get-links.ts";
 import path from "node:path";
 import xml2js from "xml2js";
 import { strict as assert } from "node:assert";

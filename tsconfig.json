@@ -12,6 +12,8 @@
     "sourceMap": true,
 		"module": "nodenext",
 		"declaration": true,
+		"allowImportingTsExtensions": true,
+		"rewriteRelativeImportExtensions": true,
     "outDir": "dist"
   },
   "include": [

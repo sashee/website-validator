@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
-import {baseIndexFile, initFailIds, setupTestFiles, baseHtmlContents} from "./testutils.js";
+import {validate} from "../src/index.ts";
+import {baseIndexFile, initFailIds, setupTestFiles, baseHtmlContents} from "./testutils.ts";
 
 describe("sitemap", () => {
 	describe("xml", () => {

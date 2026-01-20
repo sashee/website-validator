@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {validate} from "../index.js";
-import {setupTestFiles} from "./testutils.js";
+import {validate} from "../src/index.ts";
+import {setupTestFiles} from "./testutils.ts";
 import PDFDocument from "pdfkit";
 import streams from "memory-streams";
 import {finished} from "node:stream/promises";

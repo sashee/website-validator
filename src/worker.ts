@@ -1,10 +1,10 @@
-import {DeepReadonly} from "ts-essentials";
-import {FoundPageFetchResult, UrlRole, LinkLocation, Assertion, FileFetchResult, VnuReportedError, AdditionalValidator} from "./index.js";
-import {validateFile as validateFileOrig} from "./validate-file.js";
-import {getLinks as getLinksOrig} from "./get-links.js";
-import { Pool } from "./worker-runner.js";
+import type {DeepReadonly} from "ts-essentials";
+import type {FoundPageFetchResult, UrlRole, LinkLocation, Assertion, FileFetchResult, VnuReportedError, AdditionalValidator} from "./index.ts";
+import {validateFile as validateFileOrig} from "./validate-file.ts";
+import {getLinks as getLinksOrig} from "./get-links.ts";
+import type { Pool } from "./worker-runner.ts";
 import {implementWorker} from "with-worker-threads";
-import {checkLink as checkLinkOrig} from "./check-link.js";
+import {checkLink as checkLinkOrig} from "./check-link.ts";
 import {debuglog} from "node:util";
 
 const log = debuglog("website-validator:worker");

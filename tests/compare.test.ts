@@ -1,7 +1,7 @@
 import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
-import {compareVersions} from "../index.js";
-import {initFailIds, setupTestFiles} from "./testutils.js";
+import {compareVersions} from "../src/index.ts";
+import {initFailIds, setupTestFiles} from "./testutils.ts";
 import util from "node:util";
 
 describe("compare", () => {

@@ -3,12 +3,13 @@ import {deepEqual} from "fast-equals";
 import fs from "node:fs/promises";
 import mime from "mime";
 import { strict as assert } from "node:assert";
-import {getUrlsFromSitemap} from "./get-links.js";
-import {recursiveFetchFiles} from "./fetch-files.js";
-import {DeepReadonly} from "ts-essentials";
-import {Pool, withPool} from "./worker-runner.js";
+import {getUrlsFromSitemap} from "./get-links.ts";
+import {recursiveFetchFiles} from "./fetch-files.ts";
+import type {DeepReadonly} from "ts-essentials";
+import type {Pool} from "./worker-runner.ts";
+import {withPool} from "./worker-runner.ts";
 import xml2js from "xml2js";
-import { getInterestingPageElements, vnuValidates } from "./utils.js";
+import { getInterestingPageElements, vnuValidates } from "./utils.ts";
 import {debuglog} from "node:util";
 import Ajv from "ajv";
 

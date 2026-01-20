@@ -1,4 +1,4 @@
-import {withTempDir} from "../utils.js";
+import {withTempDir} from "../src/utils.ts";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import path from "node:path";

@@ -1,7 +1,5 @@
 let
 	dependencies = import ./dependencies.nix {
-		packageJson = ./package.json;
-		packageLockJson = ./package-lock.json;
 	};
 
 	pkgs = dependencies.pkgs;
@@ -29,6 +27,7 @@ let
 			--env PATH \
 			--env HOME \
 			--env TMPDIR \
+			${pkgs.lib.concatMapStringsSep " " (name: "--env ${name}") (builtins.attrNames dependencies.variables)} \
 			--bind-tcp 8080 \
 			--bind-tcp 9229 \
 	'';
