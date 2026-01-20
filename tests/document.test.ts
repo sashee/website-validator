@@ -19,7 +19,7 @@ describe("documents", () => {
 		<script type="application/ld+json">{
 			"@context": "http://schema.org",
 			"@type": "WebSite",
-			"name": "${nextFailId()}"",
+			"name": "${nextFailId()}",
 			"url": "example.com",
 			}</script>
 	</body>
