@@ -12,6 +12,7 @@ import xml2js from "xml2js";
 import { getInterestingPageElements, vnuValidates } from "./utils.ts";
 import {debuglog} from "node:util";
 import Ajv from "ajv";
+import {minimatch} from "minimatch";
 
 export const log = debuglog("website-validator");
 
@@ -72,6 +73,11 @@ const toRelativeUrl = (baseUrl: string) => (url: string) => {
 	const urlObj = new URL(url, baseUrl);
 	return urlObj.pathname + urlObj.search;
 }
+
+const pathMatchesGlob = (pattern: string, urlPath: string) => {
+	const normalizedPath = urlPath.replace(/^\//, "");
+	return minimatch(normalizedPath, pattern);
+};
 
 export type UrlRole = {
 	type: "document",
@@ -489,6 +495,10 @@ const getExtraLinks = async (extras: ExtraTypes) => {
 
 type TargetConfig = {dir: string, indexName?: string, responseMeta?: (path: string) => {headers: {[name: string]: string}, status: number}};
 
+export type CompareConfig = {
+	contentStablePaths?: string[],
+};
+
 type JSONAdditionalValidator = {
 	type: "json",
 	schema: Parameters<InstanceType<typeof Ajv.default>["compile"]>[0],
@@ -641,13 +651,15 @@ export const validate = (options?: {concurrency?: number}) => (baseUrl: string, 
 	});
 }
 
-export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: string, targetConfig: TargetConfig) =>
+export const compareVersions = (options?: {concurrency?: number}) => (compareConfig: CompareConfig = {}) => (baseUrl: string, targetConfig: TargetConfig) =>
 	(fetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, extras: ExtraTypes) =>
 		(originalBaseUrl: string, originalTargetConfig: TargetConfig) =>
 			async (originalFetchBases: DeepReadonly<{url: string, role: UrlRole}[]>, originalExtras: ExtraTypes): Promise<{
 				removedPermanentUrls: DeepReadonly<{url: string, location: LinkLocation}[]>,
 				nonForwardCompatibleJsonLinks: DeepReadonly<{url: string, location: LinkLocation}[]>,
 				feedGuidsChanged: DeepReadonly<{url: string, feedUrl: string, originalGuid: string, newGuid: string}[]>,
+				contentStablePathContentChanges: DeepReadonly<{url: string}[]>,
+				contentStablePathNoMatches: DeepReadonly<{pattern: string}[]>,
 			}> => {
 				assert(path.isAbsolute(targetConfig.dir), "targetConfig.dir must be an absolute path");
 				assert(path.isAbsolute(originalTargetConfig.dir), "originalTargetConfig.dir must be an absolute path");
@@ -679,7 +691,7 @@ export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: s
 							return (await getAllLinks(files)(extras))
 								.filter(({asserts}) => asserts.some(({type}) => type === "permanent"));
 						};
-					const [removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged] = await Promise.all([
+					const [removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged, contentStablePathResults] = await Promise.all([
 						(async () => {
 							const originalPermanentLinks = await getAllPermanentLinks(originalFileGraph)(originalExtras);
 							const newPermanentLinks = await getAllPermanentLinks(newFileGraph)(extras);
@@ -772,11 +784,59 @@ export const compareVersions = (options?: {concurrency?: number}) => (baseUrl: s
 									return changedAtomGuids.flat();
 								})(),
 							]);
-							return [...changedRssItems, ...changedAtomItems];
-						})(),
-					])
+						return [...changedRssItems, ...changedAtomItems];
+					})(),
+					(async () => {
+						const patterns = compareConfig.contentStablePaths ?? [];
+						if (patterns.length === 0) {
+							return {
+								contentStablePathContentChanges: [],
+								contentStablePathNoMatches: [],
+							};
+						}
 
-					return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged};
-				})
-			}
+						const newFiles = newFileGraph.filter(({res}) => res.data !== null);
+						const originalFiles = originalFileGraph.filter(({res}) => res.data !== null);
+						const newFilesByUrl = new Map(newFiles.map((file) => [file.url, file] as const));
+						const originalFilesByUrl = new Map(originalFiles.map((file) => [file.url, file] as const));
+
+						const normalizePath = (url: string) => new URL(url, baseUrl).pathname;
+						const hasPatternMatchInNew = patterns.map((pattern) => {
+							return newFiles.some((file) => pathMatchesGlob(pattern, normalizePath(file.url)));
+						});
+
+						const contentStablePathNoMatches = patterns.flatMap((pattern, index) => {
+							return hasPatternMatchInNew[index] ? [] : [{pattern}];
+						});
+
+						const matchingNewUrls = new Set(newFiles
+							.filter((file) => patterns.some((pattern) => pathMatchesGlob(pattern, normalizePath(file.url))))
+							.map((file) => file.url));
+
+						const contentStablePathContentChanges = (await Promise.all(
+							Array.from(matchingNewUrls).map(async (url) => {
+								const originalFile = originalFilesByUrl.get(url);
+								const newFile = newFilesByUrl.get(url);
+								if (!originalFile || !newFile) {
+									return [] as {url: string}[];
+								}
+
+								const originalContents = await fs.readFile(originalFile.res.data!.path);
+								const newContents = await fs.readFile(newFile.res.data!.path);
+								return originalContents.equals(newContents) ? [] : [{url}];
+							})
+						)).reduce((acc, entries) => acc.concat(entries), [] as {url: string}[]);
+
+						return {
+							contentStablePathContentChanges,
+							contentStablePathNoMatches,
+						};
+					})(),
+				])
+
+				const {contentStablePathContentChanges, contentStablePathNoMatches} = contentStablePathResults;
+				return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged, contentStablePathContentChanges, contentStablePathNoMatches};
+			})
+		}
+
 

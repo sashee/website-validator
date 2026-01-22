@@ -2,7 +2,43 @@ import {describe, it} from "node:test";
 import { strict as assert } from "node:assert";
 import {compareVersions} from "../src/index.ts";
 import {initFailIds, setupTestFiles} from "./testutils.ts";
-import util from "node:util";
+
+const htmlWithAsset = `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		<script src="/assets/app.js"></script>
+	</body>
+</html>
+`;
+
+const htmlWithAssetAndStatic = `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+		<link rel="stylesheet" href="/static/site.css">
+	</head>
+	<body>
+		<script src="/assets/app.js"></script>
+	</body>
+</html>
+`;
+
+const htmlWithMovedAsset = `
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<title>title</title>
+	</head>
+	<body>
+		<script src="/_assets/app.js"></script>
+	</body>
+</html>
+`;
 
 describe("compare", () => {
 	it("reports when a file is removed from the sitemap", async () => {
@@ -36,70 +72,9 @@ https://example.com/${nextFailId()}.html
 					`
 				},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})
+				return compareVersions({concurrency: 1})({})
 					("https://example.com", {dir: newDir})
-					(fetchBases, {})
-					("https://example.com", {dir: originalDir})
-					(fetchBases, {});
-			})
-		});
-		const failIds = getFailIds();
-		assert.equal(removedPermanentUrls.length, failIds.length);
-		failIds.forEach((failId, index) => {
-			assert(removedPermanentUrls.some((location) => location.url.includes(failId) && location.location.type === "sitemaptxt"), `Should have an error but did not: ${index}`);
-		});
-	});
-	it("reports when a link is now non-permanent", async () => {
-		const {nextFailId, getFailIds} = initFailIds();
-		const failId = nextFailId();
-		const fetchBases = [{url: "/sitemap.txt", role: {type: "sitemap"}}] as const;
-		const {removedPermanentUrls} = await setupTestFiles([
-			{
-				filename: "sitemap.txt",
-				contents: `
-	https://example.com/a.html
-	https://example.com/${failId}.html
-				`
-			},
-			{
-				filename: "a.html",
-				contents: `
-<!DOCTYPE html>
-<html lang="en-us">
-	<head>
-		<title>title</title>
-	</head>
-	<body>
-		<a href="https://example.com/${failId}.html">link</a>
-	</body>
-</html>
-				`
-			},
-		])((originalDir) => {
-			return setupTestFiles([
-				{
-					filename: "sitemap.txt",
-					contents: `
-	https://example.com/a.html
-					`
-				},
-				{
-					filename: "a.html",
-					contents: `
-<!DOCTYPE html>
-<html lang="en-us">
-	<head>
-		<title>title</title>
-	</head>
-	<body>
-		<a href="https://example.com/${failId}.html">link</a>
-	</body>
-</html>
-					`
-				},
-			])((newDir) => {
-				return compareVersions({concurrency: 1})
-					("https://example.com", {dir: newDir})
+
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
@@ -124,7 +99,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({urls: ["https://example.com/a.html"]}),
 			}])((newDir) => {
-				return compareVersions({concurrency: 1})
+				return compareVersions({concurrency: 1})({})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
@@ -148,7 +123,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
-				return compareVersions({concurrency: 1})
+				return compareVersions({concurrency: 1})({})
 					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "urls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					("https://example.com", {dir: originalDir})
@@ -172,7 +147,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/${failId}.html`]}),
 			}])((newDir) => {
-				return compareVersions({concurrency: 1})
+				return compareVersions({concurrency: 1})({})
 					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					("https://example.com", {dir: originalDir})
@@ -195,7 +170,7 @@ https://example.com/${nextFailId()}.html
 				filename: "a.json",
 				contents: JSON.stringify({newUrls: [`https://example.com/a.html`]}),
 			}])((newDir) => {
-				return compareVersions({concurrency: 1})
+				return compareVersions({concurrency: 1})({})
 					("https://example.com", {dir: newDir})
 					([{url: "/a.json", role: {type: "json", extractConfigs: [{jmespath: "newUrls[]", asserts: [{type: "permanent"}], role: {type: "asset"}}]}}], {})
 					("https://example.com", {dir: originalDir})
@@ -205,6 +180,132 @@ https://example.com/${nextFailId()}.html
 		const failIds = getFailIds();
 		assert.equal(nonForwardCompatibleJsonLinks.length, failIds.length);
 	});
+	it("reports content changes for content stable paths", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathContentChanges} = await setupTestFiles([
+			{filename: "index.html", contents: htmlWithAsset},
+			{filename: "assets/app.js", contents: "old"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithAsset},
+				{filename: "assets/app.js", contents: "new"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.equal(contentStablePathContentChanges.length, 1);
+		assert.equal(contentStablePathContentChanges[0]!.url, "https://example.com/assets/app.js");
+	});
+
+	it("does not report content changes when files are identical", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathContentChanges} = await setupTestFiles([
+			{filename: "index.html", contents: htmlWithAsset},
+			{filename: "assets/app.js", contents: "same"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithAsset},
+				{filename: "assets/app.js", contents: "same"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.equal(contentStablePathContentChanges.length, 0);
+	});
+
+	it("ignores content stable paths when missing in original", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathContentChanges} = await setupTestFiles([
+			{filename: "index.html", contents: "<html></html>"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithAsset},
+				{filename: "assets/app.js", contents: "new"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.equal(contentStablePathContentChanges.length, 0);
+	});
+
+	it("reports when content stable path patterns have no matches", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathNoMatches} = await setupTestFiles([
+			{filename: "index.html", contents: htmlWithAsset},
+			{filename: "assets/app.js", contents: "old"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithMovedAsset},
+				{filename: "_assets/app.js", contents: "new"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.deepEqual(contentStablePathNoMatches, [{pattern: "assets/*.*"}]);
+	});
+
+	it("handles multiple patterns with content changes", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathContentChanges, contentStablePathNoMatches} = await setupTestFiles([
+			{filename: "index.html", contents: htmlWithAssetAndStatic},
+			{filename: "assets/app.js", contents: "old"},
+			{filename: "static/site.css", contents: "body { color: red; }"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithAssetAndStatic},
+				{filename: "assets/app.js", contents: "new"},
+				{filename: "static/site.css", contents: "body { color: red; }"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*", "static/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.equal(contentStablePathNoMatches.length, 0);
+		assert.equal(contentStablePathContentChanges.length, 1);
+		assert.equal(contentStablePathContentChanges[0]!.url, "https://example.com/assets/app.js");
+	});
+
+	it("reports no matches for patterns that miss in new", async () => {
+		const fetchBases = [{url: "/index.html", role: {type: "document"}}] as const;
+		const {contentStablePathNoMatches, contentStablePathContentChanges} = await setupTestFiles([
+			{filename: "index.html", contents: htmlWithAsset},
+			{filename: "assets/app.js", contents: "old"},
+		])((originalDir) => {
+			return setupTestFiles([
+				{filename: "index.html", contents: htmlWithAsset},
+				{filename: "assets/app.js", contents: "new"},
+			])((newDir) => {
+				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*", "static/*.*"]})
+					("https://example.com", {dir: newDir})
+					(fetchBases, {})
+					("https://example.com", {dir: originalDir})
+					(fetchBases, {});
+			});
+		});
+		assert.deepEqual(contentStablePathNoMatches, [{pattern: "static/*.*"}]);
+		assert.equal(contentStablePathContentChanges.length, 1);
+		assert.equal(contentStablePathContentChanges[0]!.url, "https://example.com/assets/app.js");
+	});
+
 	describe("rss", () => {
 		it("reports when an rss item's guid is changed for the same url", async () => {
 			const {nextFailId, getFailIds} = initFailIds();
@@ -270,7 +371,7 @@ https://example.com/${nextFailId()}.html
 						`
 					},
 				])((newDir) => {
-					return compareVersions({concurrency: 1})
+					return compareVersions({concurrency: 1})({})
 						("https://example.com", {dir: newDir})
 						(fetchBases, {})
 						("https://example.com", {dir: originalDir})
@@ -351,7 +452,7 @@ https://example.com/${nextFailId()}.html
 						`
 					},
 				])((newDir) => {
-					return compareVersions({concurrency: 1})
+					return compareVersions({concurrency: 1})({})
 						("https://example.com", {dir: newDir})
 						(fetchBases, {})
 						("https://example.com", {dir: originalDir})

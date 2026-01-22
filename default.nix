@@ -41,9 +41,8 @@ let
 		buildPhase = ''
 			mkdir $out
 			cp -r ${builder.builder}/. $out
-			cp ${builder.builder}/package.json $out/_package.json
-			cp ${builder.builder}/package-lock.json $out/_package-lock.json
 			cd $out
+			npm run clean
 			npm run build
 			NODE_DEBUG="website-validator*" CACHE_DIR=$out/.cache npm run test
 		'';

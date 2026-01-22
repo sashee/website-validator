@@ -208,7 +208,7 @@ it.skip("compare", async () => {
 	] as const;
 	//const extras = {};
 	const extras = {extraTxtSitemaps: [extraTxtSitemap], extraXmlSitemaps: [sitemapxml1]};
-	const res = await compareVersions()
+	const res = await compareVersions()({})
 		("https://advancedweb.hu", {dir: path.join(__dirname, "..", "..", "..", "awm", "blog", "_site")})
 		(fetchBases, extras)
 		("https://advancedweb.hu", {dir: "/tmp/a/awm"})
