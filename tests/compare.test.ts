@@ -190,7 +190,7 @@ https://example.com/${nextFailId()}.html
 				{filename: "index.html", contents: htmlWithAsset},
 				{filename: "assets/app.js", contents: "new"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
@@ -211,7 +211,7 @@ https://example.com/${nextFailId()}.html
 				{filename: "index.html", contents: htmlWithAsset},
 				{filename: "assets/app.js", contents: "same"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
@@ -230,7 +230,7 @@ https://example.com/${nextFailId()}.html
 				{filename: "index.html", contents: htmlWithAsset},
 				{filename: "assets/app.js", contents: "new"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
@@ -250,14 +250,14 @@ https://example.com/${nextFailId()}.html
 				{filename: "index.html", contents: htmlWithMovedAsset},
 				{filename: "_assets/app.js", contents: "new"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
 			});
 		});
-		assert.deepEqual(contentStablePathNoMatches, [{pattern: "assets/*.*"}]);
+		assert.deepEqual(contentStablePathNoMatches, [{pattern: "/assets/*.*"}]);
 	});
 
 	it("handles multiple patterns with content changes", async () => {
@@ -272,7 +272,7 @@ https://example.com/${nextFailId()}.html
 				{filename: "assets/app.js", contents: "new"},
 				{filename: "static/site.css", contents: "body { color: red; }"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*", "static/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*", "/static/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
@@ -294,14 +294,14 @@ https://example.com/${nextFailId()}.html
 				{filename: "index.html", contents: htmlWithAsset},
 				{filename: "assets/app.js", contents: "new"},
 			])((newDir) => {
-				return compareVersions({concurrency: 1})({contentStablePaths: ["assets/*.*", "static/*.*"]})
+				return compareVersions({concurrency: 1})({contentStablePaths: ["/assets/*.*", "/static/*.*"]})
 					("https://example.com", {dir: newDir})
 					(fetchBases, {})
 					("https://example.com", {dir: originalDir})
 					(fetchBases, {});
 			});
 		});
-		assert.deepEqual(contentStablePathNoMatches, [{pattern: "static/*.*"}]);
+		assert.deepEqual(contentStablePathNoMatches, [{pattern: "/static/*.*"}]);
 		assert.equal(contentStablePathContentChanges.length, 1);
 		assert.equal(contentStablePathContentChanges[0]!.url, "https://example.com/assets/app.js");
 	});

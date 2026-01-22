@@ -74,10 +74,6 @@ const toRelativeUrl = (baseUrl: string) => (url: string) => {
 	return urlObj.pathname + urlObj.search;
 }
 
-const pathMatchesGlob = (pattern: string, urlPath: string) => {
-	const normalizedPath = urlPath.replace(/^\//, "");
-	return minimatch(normalizedPath, pattern);
-};
 
 export type UrlRole = {
 	type: "document",
@@ -802,7 +798,7 @@ export const compareVersions = (options?: {concurrency?: number}) => (compareCon
 
 						const normalizePath = (url: string) => new URL(url, baseUrl).pathname;
 						const hasPatternMatchInNew = patterns.map((pattern) => {
-							return newFiles.some((file) => pathMatchesGlob(pattern, normalizePath(file.url)));
+							return newFiles.some((file) => minimatch(normalizePath(file.url), pattern));
 						});
 
 						const contentStablePathNoMatches = patterns.flatMap((pattern, index) => {
@@ -810,7 +806,7 @@ export const compareVersions = (options?: {concurrency?: number}) => (compareCon
 						});
 
 						const matchingNewUrls = new Set(newFiles
-							.filter((file) => patterns.some((pattern) => pathMatchesGlob(pattern, normalizePath(file.url))))
+							.filter((file) => patterns.some((pattern) => minimatch(normalizePath(file.url), pattern)))
 							.map((file) => file.url));
 
 						const contentStablePathContentChanges = (await Promise.all(
