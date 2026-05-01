@@ -198,6 +198,44 @@ export type LinkLocation = {
 	type: "redirect",
 }
 
+type FeedUrlLocation = {
+	type: "rssItemLink",
+	feedUrl: string,
+	channelIndex: number,
+	itemIndex: number,
+	linkIndex: number,
+} | {
+	type: "rssItemDescriptionHtml",
+	feedUrl: string,
+	channelIndex: number,
+	itemIndex: number,
+	element: {
+		tagName: "a" | "img",
+		attribute: "href" | "src" | "srcset",
+		outerHTML: string,
+	},
+} | {
+	type: "atomEntryLink",
+	feedUrl: string,
+	entryIndex: number,
+	linkIndex: number,
+} | {
+	type: "atomEntryContentHtml",
+	feedUrl: string,
+	entryIndex: number,
+	element: {
+		tagName: "a" | "img",
+		attribute: "href" | "src" | "srcset",
+		outerHTML: string,
+	},
+};
+
+type FeedRelativeUrlError = {
+	type: "FEED_RELATIVE_URL",
+	url: string,
+	location: FeedUrlLocation,
+};
+
 export type LinkErrorTypes = LinkError["type"];
 
 type LinkError = {
@@ -358,6 +396,7 @@ type AdditionalValidatorError = {
 export type ValidationResultType = DeepReadonly<LinkError
 | DocumentErrors
 | NotFoundError
+| FeedRelativeUrlError
 | {
 	type: "ROBOTS_TXT_HOST_INVALID",
 	expectedHost: string,
@@ -834,5 +873,4 @@ export const compareVersions = (options?: {concurrency?: number}) => (compareCon
 				return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged, contentStablePathContentChanges, contentStablePathNoMatches};
 			})
 		}
-
 
