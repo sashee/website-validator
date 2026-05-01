@@ -183,6 +183,25 @@ export type LinkLocation = {
 	entryIndex: number,
 	linkIndex: number,
 } | {
+	type: "rssItemDescriptionHtml",
+	feedUrl: string,
+	channelIndex: number,
+	itemIndex: number,
+	element: {
+		tagName: "a" | "img",
+		attribute: "href" | "src" | "srcset",
+		outerHTML: string,
+	},
+} | {
+	type: "atomEntryContentHtml",
+	feedUrl: string,
+	entryIndex: number,
+	element: {
+		tagName: "a" | "img",
+		attribute: "href" | "src" | "srcset",
+		outerHTML: string,
+	},
+} | {
 	type: "json",
 	jsonurl: string,
 	jmespath: string,
@@ -873,4 +892,3 @@ export const compareVersions = (options?: {concurrency?: number}) => (compareCon
 				return {removedPermanentUrls, nonForwardCompatibleJsonLinks, feedGuidsChanged, contentStablePathContentChanges, contentStablePathNoMatches};
 			})
 		}
-

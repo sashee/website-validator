@@ -205,7 +205,7 @@ describe("rss", () => {
 				<img src="/${srcFailId}.png">
 				<img srcset="/${srcsetFailId}.png 1x, https://example.com/good.png 2x">
 			]]></description>
-		`)));
+		`), [{filename: "good.png", contents: "png"}]));
 		assert.equal(errors.length, getFailIds().length, JSON.stringify(errors, undefined, 4));
 		getFailIds().forEach((failId) => {
 			assert(errors.some((error) => error.type === "FEED_RELATIVE_URL" && error.url.includes(failId) && error.location.type === "rssItemDescriptionHtml"), `Should have an error but did not: ${failId}`);
@@ -359,7 +359,7 @@ describe("atom", () => {
 				<img src="/${srcFailId}.png">
 				<img srcset="/${srcsetFailId}.png 1x, https://example.com/good.png 2x">
 			]]></content>
-		`)));
+		`), [{filename: "good.png", contents: "png"}]));
 		assert.equal(errors.length, getFailIds().length, JSON.stringify(errors, undefined, 4));
 		getFailIds().forEach((failId) => {
 			assert(errors.some((error) => error.type === "FEED_RELATIVE_URL" && error.url.includes(failId) && error.location.type === "atomEntryContentHtml"), `Should have an error but did not: ${failId}`);
