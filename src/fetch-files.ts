@@ -1,13 +1,24 @@
 import Rx from "rxjs";
 import RxJsOperators from "rxjs/operators";
-import type {UrlRole, FoundPageFetchResult, FileFetchResult} from "./index.ts";
+import type {UrlRole, FoundPageFetchResult, FileFetchResult, LinkLocation, Assertion} from "./index.ts";
 import {toCanonical, isInternalLink} from "./index.ts";
 import {deepEqual} from "fast-equals";
-import url from "node:url";
 import type {DeepReadonly} from "ts-essentials";
 import type {Pool} from "./worker-runner.ts";
 
-export const recursiveFetchFiles = (pool: Pool, fetchFile: (url: string) => Promise<DeepReadonly<FileFetchResult>>, baseUrl: string, indexName: string) => async (startUrls: DeepReadonly<{url: string, role: UrlRole}[]>) => {
+export type RecursiveFetchFileResult = {
+  url: string,
+  role: DeepReadonly<UrlRole>,
+  res: DeepReadonly<FileFetchResult>,
+  links: DeepReadonly<{
+    url: string,
+    role: UrlRole,
+    asserts: readonly Assertion[],
+    location: LinkLocation,
+  }[]> | null,
+};
+
+export const recursiveFetchFiles = (pool: Pool, fetchFile: (url: string) => Promise<DeepReadonly<FileFetchResult>>, baseUrl: string, indexName: string) => async (startUrls: DeepReadonly<{url: string, role: UrlRole}[]>): Promise<RecursiveFetchFileResult[]> => {
 	if (startUrls.length === 0) {
 		return [];
 	}
