@@ -31,5 +31,3 @@ jobs:
         node-version: 'lts/*'
         registry-url: https://registry.npmjs.org/
     - run: npm publish --provenance --access public ./result/*.tgz
-      env:
-        NODE_AUTH_TOKEN: ${{secrets.npm_token}}
