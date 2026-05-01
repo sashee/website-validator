@@ -5,6 +5,7 @@ import {validateEpub, validatePdf, getImageDimensions, getInterestingPageElement
 import fs from "node:fs/promises";
 import _robotsParser from "robots-parser";
 import { getUrlsFromSitemap } from "./get-links.ts";
+import {getAtomUrls, getRssUrls, relativeFeedUrlErrors} from "./feed.ts";
 import path from "node:path";
 import xml2js from "xml2js";
 import { strict as assert } from "node:assert";
@@ -329,6 +330,26 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 						return [];
 					}
 				})
+			}else if (roles.some(({type}) => type === "rss")) {
+				const contents = await fs.readFile(res.data.path);
+				try {
+					return relativeFeedUrlErrors(await getRssUrls(contents.toString("utf8"), url));
+				}catch(e) {
+					return [{
+						type: "XML_FILE_UNPARSEABLE",
+						location: {url},
+					}] as const;
+				}
+			}else if (roles.some(({type}) => type === "atom")) {
+				const contents = await fs.readFile(res.data.path);
+				try {
+					return relativeFeedUrlErrors(await getAtomUrls(contents.toString("utf8"), url));
+				}catch(e) {
+					return [{
+						type: "XML_FILE_UNPARSEABLE",
+						location: {url},
+					}] as const;
+				}
 			}else if (contentType === "application/xml" || (contentType !== undefined && contentType.endsWith("+xml"))) {
 				const contents = await fs.readFile(res.data.path);
 				try {
@@ -422,4 +443,3 @@ export const validateFile = async (baseUrl: string, indexName: string, url: stri
 	// TODO: if rss.item.guid isPermalink=true or missing then validate target URL
 	// TODO: validate atom item can have 1 id
 }
-

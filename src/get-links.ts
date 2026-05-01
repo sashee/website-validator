@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {extractAllUrlsFromCss, getInterestingPageElements} from "./utils.ts";
 import type {DeepReadonly} from "ts-essentials";
+import {getAtomUrls, getRssUrls, isAbsoluteFeedUrl} from "./feed.ts";
 
 // can be removed when robots-parser is converted to ESM
 const robotsParser = _robotsParser as any as typeof _robotsParser.default;
@@ -61,22 +62,10 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 		});
 	}else if (role.type === "rss") {
 		const contents = await fs.readFile(res.data.path);
-		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-		return (parsed.rss.channel as {item: {link: string[]}[] | undefined}[]).flatMap((channel, channelIndex) => ((channel.item ?? []).map((c) => ({link: c.link, channelIndex}))).flatMap(({link, channelIndex}, linkIndex) => ({link, linkIndex, channelIndex}))).flatMap(({link, channelIndex, linkIndex}) => link.map((l) => ({
-			url: l,
-			role: {type: "document"},
-			asserts: [{type: "permanent"}],
-			location: {type: "rss", rssurl: url, channelIndex, linkIndex},
-		} as const)));
+		return (await getRssUrls(contents.toString("utf8"), url)).filter(({url}) => isAbsoluteFeedUrl(url)).map(({url, role, asserts, location}) => ({url, role, asserts, location}));
 	}else if (role.type === "atom") {
 		const contents = await fs.readFile(res.data.path);
-		const parsed = await xml2js.parseStringPromise(contents.toString("utf8"));
-		return (parsed.feed.entry as {link: {$: {href: string}}[]}[] | undefined ?? []).flatMap((entry, entryIndex) => entry.link.flatMap((link, linkIndex) => ({href: link.$.href, entryIndex, linkIndex}))).map(({href, entryIndex, linkIndex}) => ({
-			url: href,
-			role: {type: "document"},
-			asserts: [{type: "permanent"}],
-			location: {type: "atom", atomurl: url, entryIndex, linkIndex},
-		} as const));
+		return (await getAtomUrls(contents.toString("utf8"), url)).filter(({url}) => isAbsoluteFeedUrl(url)).map(({url, role, asserts, location}) => ({url, role, asserts, location}));
 	}else if (role.type === "json") {
 		const contents = await fs.readFile(res.data.path);
 		const asJson = JSON.parse(contents.toString("utf8"));
@@ -210,4 +199,3 @@ export const getLinks = async (url: string, role: DeepReadonly<UrlRole>, res: Fo
 		return [];
 	}
 }
-
